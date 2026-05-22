@@ -54,15 +54,15 @@ spec:
         - node
         - packages/backend
         - --config
-        - /app/app-config.yaml
+        - /usr/src/app/app-config.yaml
         - --config
-        - /app/app-config.catalog.yaml
+        - /usr/src/app/app-config.catalog.yaml
         ports:
         - containerPort: 7000
           name: http
         volumeMounts:
         - name: catalog-config
-          mountPath: /app/app-config.catalog.yaml
+          mountPath: /usr/src/app/app-config.catalog.yaml
           subPath: app-config.catalog.yaml
       volumes:
       - name: catalog-config
