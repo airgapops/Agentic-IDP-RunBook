@@ -48,6 +48,9 @@ spec:
               extraArgs:
               - --tls-san=192.168.0.13
               - --tls-san=*.zerops.internal
+            syncer:
+              extraArgs:
+              - --service-cidr=10.43.0.0/16
     patches:
     - type: FromCompositeFieldPath
       fromFieldPath: spec.namespace
