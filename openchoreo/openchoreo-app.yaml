@@ -76,6 +76,12 @@ metadata:
   namespace: openchoreo-system
 data:
   app-config.catalog.yaml: |
+    integrations:
+      gitea:
+        - host: gitea.zerops.internal
+          baseUrl: https://gitea.zerops.internal
+          username: jadamson
+          password: Panama2028#...
     catalog:
       locations:
         - type: url
