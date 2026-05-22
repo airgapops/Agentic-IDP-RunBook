@@ -47,19 +47,42 @@ spec:
           value: https://choreo.zerops.internal
         - name: APP_CONFIG_backend_cors_origin
           value: https://choreo.zerops.internal
-        # --- Catalog discovery: Gitea repo con entidades de infraestructura ---
-        - name: APP_CONFIG_catalog__locations__0__type
-          value: url
-        - name: APP_CONFIG_catalog__locations__0__target
-          value: https://gitea.zerops.internal/jadamson/airgap-ops/raw/branch/main/backstage-catalog/infrastructure-catalog.yaml
-        # --- TLS: permitir certificados de CA privada (Step-CA interna) ---
+        # TLS: skip verification for internal Step-CA signed Gitea
         - name: NODE_TLS_REJECT_UNAUTHORIZED
           value: "0"
+        args:
+        - node
+        - packages/backend
+        - --config
+        - /app/app-config.yaml
+        - --config
+        - /app/app-config.catalog.yaml
         ports:
         - containerPort: 7000
           name: http
-
+        volumeMounts:
+        - name: catalog-config
+          mountPath: /app/app-config.catalog.yaml
+          subPath: app-config.catalog.yaml
+      volumes:
+      - name: catalog-config
+        configMap:
+          name: backstage-catalog-config
 ---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backstage-catalog-config
+  namespace: openchoreo-system
+data:
+  app-config.catalog.yaml: |
+    catalog:
+      locations:
+        - type: url
+          target: https://gitea.zerops.internal/jadamson/airgap-ops/raw/branch/main/backstage-catalog/infrastructure-catalog.yaml
+          rules:
+            - allow: [Component, System, Resource, API, Location]
+
 apiVersion: v1
 kind: Service
 metadata:
