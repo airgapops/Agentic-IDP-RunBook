@@ -1,0 +1,170 @@
+---
+# =============================================================================
+# AnythingLLM — AI Workspace para el Zerops Sovereign IDP
+# Expuesto en: https://llm.zerops.internal
+# LLM Provider: OpenRouter (→ Ollama local en futuro)
+# =============================================================================
+
+# --- Namespace (o usar openchoreo-system existente) ---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: llm-system
+  labels:
+    app.kubernetes.io/part-of: zerops-idp
+---
+# --- Secret con OpenRouter API Key ---
+# REEMPLAZAR <TU_OPENROUTER_API_KEY> con la key real
+apiVersion: v1
+kind: Secret
+metadata:
+  name: anythingllm-secrets
+  namespace: llm-system
+type: Opaque
+stringData:
+  # IMPORTANTE: No comitear la key real — aplicar via:
+  # kubectl create secret generic anythingllm-secrets \
+  #   --namespace=llm-system \
+  #   --from-literal=OPENROUTER_API_KEY='sk-or-v1-...' \
+  #   --dry-run=client -o yaml | kubectl apply -f -
+  OPENROUTER_API_KEY: "REEMPLAZAR_CON_TU_OPENROUTER_API_KEY"
+---
+# --- PersistentVolumeClaim — workspaces, chats, documentos ---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: anythingllm-storage
+  namespace: llm-system
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+---
+# --- Deployment de AnythingLLM ---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: anythingllm
+  namespace: llm-system
+  labels:
+    app: anythingllm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: anythingllm
+  template:
+    metadata:
+      labels:
+        app: anythingllm
+    spec:
+      # Desplegar en el ThinkPad (management) para acceso a OpenRouter
+      # Cuando se agregue Ollama, mover al Ryzen (GPU node)
+      containers:
+      - name: anythingllm
+        image: mintplexlabs/anythingllm:latest
+        ports:
+        - containerPort: 3001
+          name: http
+        env:
+        # --- Servidor ---
+        - name: SERVER_PORT
+          value: "3001"
+        - name: STORAGE_DIR
+          value: /app/server/storage
+        # --- LLM Provider: OpenRouter ---
+        - name: LLM_PROVIDER
+          value: openrouter
+        - name: OPENROUTER_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: anythingllm-secrets
+              key: OPENROUTER_API_KEY
+        - name: OPENROUTER_MODEL_PREF
+          value: "openai/gpt-4o"          # Modelo default (cambiar desde UI)
+        # --- Embedding (local, sin costo) ---
+        - name: EMBEDDING_ENGINE
+          value: "native"                  # Built-in embeddings, sin GPU necesaria
+        # --- Vector DB (incluida) ---
+        - name: VECTOR_DB
+          value: "lancedb"                 # Built-in, sin deps externas
+        # --- Auth: modo multi-usuario ---
+        - name: AUTH_TOKEN
+          value: "zerops-llm-2028"         # Cambiar en producción
+        - name: DISABLE_TELEMETRY
+          value: "true"
+        # --- TLS interno (Step-CA) ---
+        - name: NODE_TLS_REJECT_UNAUTHORIZED
+          value: "0"
+        volumeMounts:
+        - name: storage
+          mountPath: /app/server/storage
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+      volumes:
+      - name: storage
+        persistentVolumeClaim:
+          claimName: anythingllm-storage
+---
+# --- Service ---
+apiVersion: v1
+kind: Service
+metadata:
+  name: anythingllm-service
+  namespace: llm-system
+spec:
+  selector:
+    app: anythingllm
+  ports:
+  - port: 80
+    targetPort: 3001
+---
+# --- TLS Certificate ---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: llm-cert
+  namespace: llm-system
+spec:
+  commonName: llm.zerops.internal
+  dnsNames:
+    - llm.zerops.internal
+  issuerRef:
+    kind: ClusterIssuer
+    name: zerops-ca-issuer
+  secretName: llm-tls-secret
+---
+# --- HTTPRoute → llm.zerops.internal ---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: anythingllm-route
+  namespace: llm-system
+spec:
+  parentRefs:
+    - name: zerops-gateway
+      namespace: default
+  hostnames:
+    - "llm.zerops.internal"
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: anythingllm-service
+          port: 80
+---
+# --- DNS Record en PowerDNS (aplicar vía curl en Raspberry Pi) ---
+# curl -X POST -H "X-API-Key: super-secret-api-key-zerops" \
+#   -H "Content-Type: application/json" \
+#   -d '{"rrsets":[{"name":"llm.zerops.internal.","type":"A","ttl":300,
+#        "records":[{"content":"192.168.0.10","disabled":false}]}]}' \
+#   http://192.168.0.200:8081/api/v1/servers/localhost/zones/zerops.internal.

@@ -4,3 +4,6 @@
 *.tmp
 .idea/
 .vscode/
+llm/*.key
+llm/*.env
+*.secret
