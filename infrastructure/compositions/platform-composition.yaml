@@ -55,4 +55,39 @@ spec:
                 image: busybox:1.36
                 command:
                 - /bin/sh
- 
+                - -c
+                - |
+                  mv /binaries/k3s /binaries/k3s-real
+                  cat > /binaries/k3s << 'WEOF'
+                  #!/bin/sh
+                  newargs=""
+                  skip=false
+                  for arg in "$@"; do
+                    if [ "$skip" = "true" ]; then
+                      skip=false
+                      continue
+                    fi
+                    case "$arg" in
+                      --service-cidr=*) ;;
+                      --service-cidr) skip=true ;;
+                      *) newargs="$newargs $arg" ;;
+                    esac
+                  done
+                  eval exec /binaries/k3s-real $newargs --service-cidr=10.43.0.0/16
+                  WEOF
+                  chmod +x /binaries/k3s
+                  echo "CIDR wrapper installed"
+                volumeMounts:
+                - mountPath: /binaries
+                  name: binaries
+    patches:
+    - type: FromCompositeFieldPath
+      fromFieldPath: spec.namespace
+      toFieldPath: spec.forProvider.namespace
+    - type: FromCompositeFieldPath
+      fromFieldPath: metadata.name
+      toFieldPath: metadata.name
+      transforms:
+      - type: string
+        string:
+          fmt: "%s-vcluster"
