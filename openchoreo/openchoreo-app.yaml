@@ -29,7 +29,7 @@ spec:
     spec:
       containers:
       - name: backstage
-        image: backstage/backstage:latest
+        image: roadiehq/community-backstage-image:latest
         env:
         - name: POSTGRES_HOST
           value: openchoreo-db-service.openchoreo-system.svc.cluster.local
