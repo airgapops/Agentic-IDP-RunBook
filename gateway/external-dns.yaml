@@ -10,7 +10,7 @@ metadata:
   name: external-dns
 rules:
   - apiGroups: [""]
-    resources: ["services","endpoints","pods"]
+    resources: ["services","endpoints","pods","namespaces"]
     verbs: ["get","watch","list"]
   - apiGroups: ["extensions","apps"]
     resources: ["deployments"]
