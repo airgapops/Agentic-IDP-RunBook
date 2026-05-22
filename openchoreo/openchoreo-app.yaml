@@ -47,9 +47,35 @@ spec:
           value: https://choreo.zerops.internal
         - name: APP_CONFIG_backend_cors_origin
           value: https://choreo.zerops.internal
+        # --- Catalog discovery: Gitea repo con entidades de infraestructura ---
+        - name: APP_CONFIG_catalog_locations_0__type
+          value: url
+        - name: APP_CONFIG_catalog_locations_0__target
+          value: https://gitea.zerops.internal/jadamson/airgap-ops/raw/branch/main/backstage-catalog/infrastructure-catalog.yaml
+        - name: APP_CONFIG_catalog_locations_0__rules_0__allow_0
+          value: Component
+        - name: APP_CONFIG_catalog_locations_0__rules_0__allow_1
+          value: System
+        - name: APP_CONFIG_catalog_locations_0__rules_0__allow_2
+          value: Resource
+        - name: APP_CONFIG_catalog_locations_0__rules_0__allow_3
+          value: API
+        # --- Integración Gitea como SCM (para leer archivos del repo) ---
+        - name: APP_CONFIG_integrations_gitea_0__host
+          value: gitea.zerops.internal
+        - name: APP_CONFIG_integrations_gitea_0__baseUrl
+          value: https://gitea.zerops.internal
+        - name: APP_CONFIG_integrations_gitea_0__username
+          value: jadamson
+        - name: APP_CONFIG_integrations_gitea_0__password
+          value: Panama2028#...
+        # --- Configuración TLS interna (aceptar CA privada) ---
+        - name: NODE_EXTRA_CA_CERTS
+          value: /etc/ssl/certs/zerops-root-ca.crt
         ports:
         - containerPort: 7000
           name: http
+
 ---
 apiVersion: v1
 kind: Service

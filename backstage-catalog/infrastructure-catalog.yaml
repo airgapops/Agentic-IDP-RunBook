@@ -1,0 +1,286 @@
+---
+# =============================================================================
+# ZEROPS SOVEREIGN IDP — Backstage Catalog Entities
+# Sistema de Infraestructura como Producto (InfraAsProduct)
+# Descubierto automáticamente desde Gitea por Backstage App-Config
+# =============================================================================
+
+# --------------------------------------------------------------------------
+# SYSTEM: El IDP completo como sistema de negocio
+# --------------------------------------------------------------------------
+apiVersion: backstage.io/v1alpha1
+kind: System
+metadata:
+  name: zerops-sovereign-idp
+  title: Zerops Sovereign IDP
+  description: >
+    Internal Developer Platform air-gapped de múltiples clusters.
+    Aprovisiona entornos de desarrollo aislados (vcluster) con bases de datos,
+    colas de mensajes y modelos LLM, todo gestionado vía Crossplane + GitOps.
+  tags:
+    - infrastructure
+    - platform-engineering
+    - air-gapped
+    - crossplane
+    - gitops
+  annotations:
+    backstage.io/techdocs-ref: dir:.
+    github.com/project-slug: jadamson/airgap-ops
+spec:
+  owner: platform-team
+  domain: infrastructure
+---
+# --------------------------------------------------------------------------
+# RESOURCE: Management Cluster (ThinkPad)
+# El cerebro del IDP — corre Crossplane, ArgoCD, cert-manager, Gateway
+# --------------------------------------------------------------------------
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: thinkpad-management-cluster
+  title: ThinkPad — Management Cluster
+  description: >
+    Clúster K3s principal que actúa como Control Plane del IDP.
+    Corre: Crossplane (aprovisionamiento), ArgoCD (GitOps), cert-manager (TLS),
+    Envoy Gateway (ingress), Backstage (developer portal).
+  tags:
+    - kubernetes
+    - k3s
+    - management-cluster
+    - crossplane
+    - argocd
+  annotations:
+    backstage.io/managed-by-location: url:https://gitea.zerops.internal/jadamson/airgap-ops
+    zerops.internal/node-ip: "192.168.0.10"
+    zerops.internal/k3s-version: "1.35"
+    zerops.internal/role: management
+  links:
+    - url: https://argocd.zerops.internal
+      title: ArgoCD UI
+      icon: dashboard
+    - url: https://choreo.zerops.internal
+      title: Developer Portal (Backstage)
+      icon: dashboard
+spec:
+  type: kubernetes-cluster
+  owner: platform-team
+  system: zerops-sovereign-idp
+  lifecycle: production
+  dependsOn:
+    - resource:raspberry-pi-dns-pki
+---
+# --------------------------------------------------------------------------
+# RESOURCE: Compute Node (Ryzen)
+# El músculo — donde viven los vclusters y las cargas de trabajo
+# --------------------------------------------------------------------------
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: ryzen-compute-cluster
+  title: Ryzen — Compute Cluster
+  description: >
+    Nodo de cómputo K3s donde Crossplane aprovisiona vclusters (entornos de
+    desarrollo aislados) vía Helm. Cada Platform CR crea un vcluster aquí.
+    Conectado al Management Cluster vía kubeconfig secret.
+  tags:
+    - kubernetes
+    - k3s
+    - compute-node
+    - vcluster
+  annotations:
+    zerops.internal/node-ip: "192.168.0.13"
+    zerops.internal/k3s-version: "1.35"
+    zerops.internal/role: compute
+    zerops.internal/current-vclusters: "1"
+  links:
+    - url: https://gitea.zerops.internal/jadamson/airgap-ops/src/branch/main/infrastructure/compositions
+      title: Compositions (Gitea)
+      icon: code
+spec:
+  type: kubernetes-cluster
+  owner: platform-team
+  system: zerops-sovereign-idp
+  lifecycle: production
+  dependsOn:
+    - resource:thinkpad-management-cluster
+---
+# --------------------------------------------------------------------------
+# RESOURCE: Raspberry Pi — DNS + PKI
+# La fundación — resuelve dominios internos y firma certificados TLS
+# --------------------------------------------------------------------------
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: raspberry-pi-dns-pki
+  title: Raspberry Pi — DNS & PKI (Tier-0)
+  description: >
+    Infraestructura de Día Cero. Corre PowerDNS (Split-Horizon DNS para
+    zerops.internal) y Step-CA (servidor ACME privado para TLS interno).
+    Todo el tráfico mTLS del IDP depende de este nodo.
+  tags:
+    - dns
+    - pki
+    - step-ca
+    - powerdns
+    - tier-0
+  annotations:
+    zerops.internal/node-ip: "192.168.0.200"
+    zerops.internal/role: network-identity
+    zerops.internal/dns-zone: zerops.internal
+    zerops.internal/ca-url: https://step-ca.zerops.internal:9000
+    backstage.io/techdocs-ref: dir:docs/playbooks/PB-00-corporate-network-identity.md
+  links:
+    - url: http://192.168.0.200:8081
+      title: PowerDNS API
+      icon: api
+spec:
+  type: network-infrastructure
+  owner: platform-team
+  system: zerops-sovereign-idp
+  lifecycle: production
+---
+# --------------------------------------------------------------------------
+# RESOURCE: Entorno activo — ryzen-dev-platform vcluster
+# Instancia concreta de Platform aprovisionada por Crossplane
+# --------------------------------------------------------------------------
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: ryzen-dev-platform
+  title: ryzen-dev-platform (vcluster)
+  description: >
+    Entorno de desarrollo aislado aprovisionado via Crossplane Platform CR.
+    Es un clúster K3s virtual (vcluster 0.19.5) corriendo en el Ryzen compute node.
+    CIDR: 10.43.0.0/16 (heredado del host). Nodo virtual: localhost.localdomain Ready.
+  tags:
+    - vcluster
+    - dev-environment
+    - crossplane-managed
+    - k3s
+  annotations:
+    zerops.internal/platform-cr: default/ryzen-dev-platform
+    zerops.internal/namespace: ryzen-dev-apps
+    zerops.internal/vcluster-version: "0.19.5"
+    zerops.internal/k3s-internal-version: "v1.29.0+k3s1"
+    zerops.internal/status: Running
+  links:
+    - url: https://argocd.zerops.internal/applications/infrastructure
+      title: ArgoCD — Infrastructure App
+      icon: dashboard
+spec:
+  type: platform-environment
+  owner: platform-team
+  system: zerops-sovereign-idp
+  lifecycle: development
+  dependsOn:
+    - resource:ryzen-compute-cluster
+---
+# --------------------------------------------------------------------------
+# COMPONENT: Crossplane — Motor de Aprovisionamiento
+# --------------------------------------------------------------------------
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: crossplane-control-plane
+  title: Crossplane Control Plane
+  description: >
+    Motor de aprovisionamiento de infraestructura. Gestiona: Platform (vcluster),
+    Database (PostgreSQL), Queue (RabbitMQ), LlmKube (servicios LLM).
+    Compositions definen el "cómo", CRs definen el "qué".
+  tags:
+    - crossplane
+    - infrastructure-as-code
+    - control-plane
+  annotations:
+    backstage.io/managed-by-location: url:https://gitea.zerops.internal/jadamson/airgap-ops/src/branch/main/infrastructure
+    zerops.internal/installed-on: thinkpad-management-cluster
+    zerops.internal/namespace: crossplane-system
+  links:
+    - url: https://gitea.zerops.internal/jadamson/airgap-ops/src/branch/main/infrastructure/compositions
+      title: Compositions
+      icon: code
+    - url: https://gitea.zerops.internal/jadamson/airgap-ops/src/branch/main/infrastructure/xrds
+      title: XRDs (APIs)
+      icon: api
+spec:
+  type: platform-tool
+  owner: platform-team
+  system: zerops-sovereign-idp
+  lifecycle: production
+  dependsOn:
+    - resource:thinkpad-management-cluster
+---
+# --------------------------------------------------------------------------
+# COMPONENT: ArgoCD — GitOps Engine
+# --------------------------------------------------------------------------
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: argocd-gitops-engine
+  title: ArgoCD — GitOps Engine
+  description: >
+    Motor de GitOps. Sincroniza el estado deseado del repositorio Gitea
+    con el estado real del clúster. Gestiona las apps: crossplane,
+    infrastructure, gateway, openchoreo, root-app.
+  tags:
+    - argocd
+    - gitops
+    - continuous-delivery
+  annotations:
+    zerops.internal/installed-on: thinkpad-management-cluster
+    zerops.internal/namespace: argocd
+    zerops.internal/git-repo: https://gitea.zerops.internal/jadamson/airgap-ops.git
+  links:
+    - url: https://argocd.zerops.internal
+      title: ArgoCD UI
+      icon: dashboard
+spec:
+  type: platform-tool
+  owner: platform-team
+  system: zerops-sovereign-idp
+  lifecycle: production
+---
+# --------------------------------------------------------------------------
+# API: Platform CR — API para crear entornos de desarrollo
+# --------------------------------------------------------------------------
+apiVersion: backstage.io/v1alpha1
+kind: API
+metadata:
+  name: platform-cr-api
+  title: Platform CR — Developer Environment API
+  description: >
+    API Kubernetes (CRD) para solicitar un entorno de desarrollo aislado.
+    Un Platform CR aprovisiona automáticamente un vcluster, namespace y
+    conectividad de red en el Ryzen compute node.
+  tags:
+    - kubernetes-crd
+    - self-service
+    - platform-api
+  annotations:
+    backstage.io/managed-by-location: url:https://gitea.zerops.internal/jadamson/airgap-ops/src/branch/main/infrastructure/xrds
+spec:
+  type: openapi
+  lifecycle: production
+  owner: platform-team
+  system: zerops-sovereign-idp
+  definition: |
+    openapi: "3.0.0"
+    info:
+      title: Platform API (Crossplane CRD)
+      version: v1alpha1
+    paths:
+      /apis/zerops.internal/v1alpha1/namespaces/{namespace}/platforms:
+        post:
+          summary: Create a new isolated developer environment (vcluster)
+          requestBody:
+            content:
+              application/json:
+                example:
+                  apiVersion: zerops.internal/v1alpha1
+                  kind: Platform
+                  metadata:
+                    name: my-team-dev
+                    namespace: default
+                  spec:
+                    size: small
+                    namespace: my-team-apps
