@@ -1,0 +1,37 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: CompositeResourceDefinition
+metadata:
+  name: compositellmkubes.zerops.internal
+spec:
+  group: zerops.internal
+  names:
+    kind: CompositeLlmKube
+    plural: compositellmkubes
+  claimNames:
+    kind: LlmKube
+    plural: llmkubes
+  versions:
+  - name: v1alpha1
+    served: true
+    referenceable: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            properties:
+              model:
+                type: string
+                description: LLM model name (llama3, mistral, phi3)
+                default: llama3
+              gpuCount:
+                type: integer
+                description: Number of GPUs to allocate
+                default: 1
+              vclusterNamespace:
+                type: string
+                description: Namespace within the vcluster/host where the LLM engine should run
+            required:
+            - model
+            - vclusterNamespace

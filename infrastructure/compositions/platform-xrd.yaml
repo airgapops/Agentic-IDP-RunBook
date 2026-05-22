@@ -1,0 +1,32 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: CompositeResourceDefinition
+metadata:
+  name: compositeplatforms.zerops.internal
+spec:
+  group: zerops.internal
+  names:
+    kind: CompositePlatform
+    plural: compositeplatforms
+  claimNames:
+    kind: Platform
+    plural: platforms
+  versions:
+  - name: v1alpha1
+    served: true
+    referenceable: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            properties:
+              size:
+                type: string
+                description: Size of the vcluster (small, medium, large)
+                default: small
+              namespace:
+                type: string
+                description: Namespace on the destination host to deploy this platform
+            required:
+            - namespace

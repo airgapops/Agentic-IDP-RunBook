@@ -1,0 +1,84 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: compositedatabases.zerops.internal
+  labels:
+    provider: helm
+spec:
+  compositeTypeRef:
+    apiVersion: zerops.internal/v1alpha1
+    kind: CompositeDatabase
+  compositeDeletePolicy: Background
+  writeConnectionSecretsToNamespace: crossplane-system
+  resources:
+  - name: database-helm
+    base:
+      apiVersion: helm.crossplane.io/v1beta1
+      kind: Release
+      spec:
+        providerConfigRef:
+          name: ryzen-helm-cluster
+        forProvider:
+          chart:
+            name: redis
+            repository: https://charts.bitnami.com/bitnami
+            version: 18.0.0
+          namespace: default-ns
+          values:
+            architecture: standalone
+            auth:
+              enabled: false
+    patches:
+    - type: FromCompositeFieldPath
+      fromFieldPath: spec.vclusterNamespace
+      toFieldPath: spec.forProvider.namespace
+    - type: FromCompositeFieldPath
+      fromFieldPath: spec.engine
+      toFieldPath: spec.forProvider.chart.name
+      transforms:
+      - type: map
+        map:
+          redis: redis
+          postgres: postgresql
+          mariadb: mariadb
+          mongodb: mongodb
+    - type: FromCompositeFieldPath
+      fromFieldPath: metadata.name
+      toFieldPath: metadata.name
+      transforms:
+      - type: string
+        string:
+          fmt: "%s-db"
+  - name: dapr-component
+    base:
+      apiVersion: kubernetes.crossplane.io/v1alpha1
+      kind: Object
+      spec:
+        providerConfigRef:
+          name: ryzen-compute-cluster
+        forProvider:
+          manifest:
+            apiVersion: dapr.io/v1alpha1
+            kind: Component
+            metadata:
+              name: statestore
+              namespace: default-ns
+            spec:
+              type: state.redis
+              version: v1
+              metadata:
+              - name: redisHost
+                value: default-db-redis-master:6379
+              - name: redisPassword
+                value: ""
+    patches:
+    - type: FromCompositeFieldPath
+      fromFieldPath: spec.vclusterNamespace
+      toFieldPath: spec.forProvider.manifest.metadata.namespace
+    - type: FromCompositeFieldPath
+      fromFieldPath: metadata.name
+      toFieldPath: spec.forProvider.manifest.spec.metadata[0].value
+      transforms:
+      - type: string
+        string:
+          fmt: "%s-db-redis-master:6379"

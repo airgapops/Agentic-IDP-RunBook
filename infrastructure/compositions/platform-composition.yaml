@@ -1,0 +1,59 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: compositeplatforms.zerops.internal
+  labels:
+    provider: helm
+spec:
+  compositeTypeRef:
+    apiVersion: zerops.internal/v1alpha1
+    kind: CompositePlatform
+  compositeDeletePolicy: Background
+  writeConnectionSecretsToNamespace: crossplane-system
+  resources:
+  - name: remote-namespace
+    base:
+      apiVersion: kubernetes.crossplane.io/v1alpha1
+      kind: Object
+      spec:
+        providerConfigRef:
+          name: ryzen-compute-cluster
+        forProvider:
+          manifest:
+            apiVersion: v1
+            kind: Namespace
+            metadata:
+              name: default-ns
+    patches:
+    - type: FromCompositeFieldPath
+      fromFieldPath: spec.namespace
+      toFieldPath: spec.forProvider.manifest.metadata.name
+  - name: vcluster-helm
+    base:
+      apiVersion: helm.crossplane.io/v1beta1
+      kind: Release
+      spec:
+        providerConfigRef:
+          name: ryzen-helm-cluster
+        forProvider:
+          chart:
+            name: vcluster
+            repository: https://charts.loft.sh
+            version: 0.19.5
+          namespace: default-ns
+          values:
+            vcluster:
+              extraArgs:
+              - --tls-san=192.168.0.13
+              - --tls-san=*.zerops.internal
+    patches:
+    - type: FromCompositeFieldPath
+      fromFieldPath: spec.namespace
+      toFieldPath: spec.forProvider.namespace
+    - type: FromCompositeFieldPath
+      fromFieldPath: metadata.name
+      toFieldPath: metadata.name
+      transforms:
+      - type: string
+        string:
+          fmt: "%s-vcluster"

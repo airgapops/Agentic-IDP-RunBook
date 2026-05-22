@@ -1,0 +1,3 @@
+argoCD
+Usuario: admin
+Contraseña: uU285kuivWXq95qD

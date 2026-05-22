@@ -1,0 +1,37 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: CompositeResourceDefinition
+metadata:
+  name: compositedatabases.zerops.internal
+spec:
+  group: zerops.internal
+  names:
+    kind: CompositeDatabase
+    plural: compositedatabases
+  claimNames:
+    kind: Database
+    plural: databases
+  versions:
+  - name: v1alpha1
+    served: true
+    referenceable: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            properties:
+              engine:
+                type: string
+                description: Database engine (postgres, redis, mariadb, mongodb)
+                default: redis
+              storageGB:
+                type: integer
+                description: Storage size in GB
+                default: 5
+              vclusterNamespace:
+                type: string
+                description: Namespace within the vcluster/host where the database should be deployed
+            required:
+            - engine
+            - vclusterNamespace

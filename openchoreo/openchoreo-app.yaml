@@ -1,0 +1,78 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: choreo-cert
+  namespace: default
+spec:
+  commonName: choreo.zerops.internal
+  dnsNames:
+    - choreo.zerops.internal
+  issuerRef:
+    kind: ClusterIssuer
+    name: zerops-ca-issuer
+  secretName: choreo-tls-secret
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: openchoreo-app
+  namespace: openchoreo-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: openchoreo-app
+  template:
+    metadata:
+      labels:
+        app: openchoreo-app
+    spec:
+      containers:
+      - name: backstage
+        image: backstage/backstage:latest
+        env:
+        - name: POSTGRES_HOST
+          value: openchoreo-db-service.openchoreo-system.svc.cluster.local
+        - name: POSTGRES_PORT
+          value: "5432"
+        - name: POSTGRES_USER
+          value: postgres
+        - name: POSTGRES_PASSWORD
+          value: backstagepass
+        - name: POSTGRES_DB
+          value: backstage_plugin_auth
+        ports:
+        - containerPort: 7007
+          name: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: openchoreo-service
+  namespace: openchoreo-system
+spec:
+  selector:
+    app: openchoreo-app
+  ports:
+  - port: 80
+    targetPort: 7007
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: openchoreo-route
+  namespace: openchoreo-system
+spec:
+  parentRefs:
+    - name: zerops-gateway
+      namespace: default
+  hostnames:
+    - "choreo.zerops.internal"
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: openchoreo-service
+          port: 80
