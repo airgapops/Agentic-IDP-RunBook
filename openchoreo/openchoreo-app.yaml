@@ -52,14 +52,6 @@ spec:
           value: url
         - name: APP_CONFIG_catalog__locations__0__target
           value: https://gitea.zerops.internal/jadamson/airgap-ops/raw/branch/main/backstage-catalog/infrastructure-catalog.yaml
-        - name: APP_CONFIG_catalog__locations__0__rules__0__allow__0
-          value: Component
-        - name: APP_CONFIG_catalog__locations__0__rules__0__allow__1
-          value: System
-        - name: APP_CONFIG_catalog__locations__0__rules__0__allow__2
-          value: Resource
-        - name: APP_CONFIG_catalog__locations__0__rules__0__allow__3
-          value: API
         # --- TLS: permitir certificados de CA privada (Step-CA interna) ---
         - name: NODE_TLS_REJECT_UNAUTHORIZED
           value: "0"
