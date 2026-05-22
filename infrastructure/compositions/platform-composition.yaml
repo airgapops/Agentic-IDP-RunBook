@@ -45,6 +45,41 @@ spec:
             vcluster:
               extraArgs:
               - --tls-san=192.168.0.13
+            # cidr-wrapper: init container that wraps the k3s binary to deduplicate
+            # --service-cidr args. The syncer auto-detects (fails on K3s 1.35+) and
+            # appends fallback 10.96.0.0/12. The wrapper strips all --service-cidr
+            # args and injects exactly ONE correct value (10.43.0.0/16 = host CIDR).
+            syncer:
+              extraInitContainers:
+              - name: cidr-wrapper
+                image: busybox:1.36
+                command:
+                - /bin/sh
+                - -c
+                - |
+                  mv /binaries/k3s /binaries/k3s-real
+                  cat > /binaries/k3s << 'WEOF'
+                  #!/bin/sh
+                  newargs=""
+                  skip=false
+                  for arg in "$@"; do
+                    if [ "$skip" = "true" ]; then
+                      skip=false
+                      continue
+                    fi
+                    case "$arg" in
+                      --service-cidr=*) ;;
+                      --service-cidr) skip=true ;;
+                      *) newargs="$newargs $arg" ;;
+                    esac
+                  done
+                  eval exec /binaries/k3s-real $newargs --service-cidr=10.43.0.0/16
+                  WEOF
+                  chmod +x /binaries/k3s
+                  echo "CIDR wrapper installed"
+                volumeMounts:
+                - mountPath: /binaries
+                  name: binaries
     patches:
     - type: FromCompositeFieldPath
       fromFieldPath: spec.namespace
