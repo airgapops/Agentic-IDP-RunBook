@@ -42,15 +42,9 @@ spec:
             version: 0.19.5
           namespace: default-ns
           values:
-            networking:
-              serviceCIDR: 10.43.0.0/16
             vcluster:
               extraArgs:
               - --tls-san=192.168.0.13
-              - --tls-san=*.zerops.internal
-            syncer:
-              extraArgs:
-              - --service-cidr=10.43.0.0/16
     patches:
     - type: FromCompositeFieldPath
       fromFieldPath: spec.namespace
