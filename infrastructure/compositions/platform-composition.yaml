@@ -39,50 +39,22 @@ spec:
           chart:
             name: vcluster
             repository: https://charts.loft.sh
-            version: 0.19.5
+            # Downgraded from 0.19.5 — in 0.19.x the syncer binary removed
+            # --service-cidr from its CLI, breaking ALL helm CIDR config methods.
+            # In 0.15.x the syncer accepts --service-cidr correctly.
+            version: 0.15.5
           namespace: default-ns
           values:
+            # serviceCIDR works correctly in vcluster 0.15.x (unlike 0.19.5).
+            # Sets --service-cidr on both the syncer AND k3s, which is correct
+            # for 0.15.x where syncer accepts this flag.
+            serviceCIDR: "10.43.0.0/16"
             vcluster:
               extraArgs:
               - --tls-san=192.168.0.13
-              - --service-cidr=10.43.0.0/16
-            # cidr-wrapper: safety net that strips any duplicate --service-cidr args
-            # the syncer auto-appends when CIDR detection fails, and enforces
-            # exactly ONE --service-cidr=10.43.0.0/16 for k3s.
-            # NOTE: serviceCIDR top-level and syncer.extraArgs BOTH incorrectly
-            # add --service-cidr to the syncer binary (which rejects that flag).
-            # Only vcluster.extraArgs is the correct path for k3s CIDR config.
             syncer:
-              extraInitContainers:
-              - name: cidr-wrapper
-                image: busybox:1.36
-                command:
-                - /bin/sh
-                - -c
-                - |
-                  mv /binaries/k3s /binaries/k3s-real
-                  cat > /binaries/k3s << 'WEOF'
-                  #!/bin/sh
-                  newargs=""
-                  skip=false
-                  for arg in "$@"; do
-                    if [ "$skip" = "true" ]; then
-                      skip=false
-                      continue
-                    fi
-                    case "$arg" in
-                      --service-cidr=*) ;;
-                      --service-cidr) skip=true ;;
-                      *) newargs="$newargs $arg" ;;
-                    esac
-                  done
-                  eval exec /binaries/k3s-real $newargs --service-cidr=10.43.0.0/16
-                  WEOF
-                  chmod +x /binaries/k3s
-                  echo "CIDR wrapper installed"
-                volumeMounts:
-                - mountPath: /binaries
-                  name: binaries
+              extraArgs:
+              - --tls-san=192.168.0.13
     patches:
     - type: FromCompositeFieldPath
       fromFieldPath: spec.namespace
