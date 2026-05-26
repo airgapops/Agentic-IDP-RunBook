@@ -8,7 +8,7 @@ spec:
   compositeTypeRef:
     apiVersion: zerops.internal/v1alpha1
     kind: CompositePlatform
-  compositeDeletePolicy: Background
+
   writeConnectionSecretsToNamespace: crossplane-system
   resources:
   - name: remote-namespace
@@ -50,6 +50,8 @@ spec:
             # appends fallback 10.96.0.0/12. The wrapper strips all --service-cidr
             # args and injects exactly ONE correct value (10.43.0.0/16 = host CIDR).
             syncer:
+              extraArgs:
+              - --service-cidr=10.43.0.0/16
               extraInitContainers:
               - name: cidr-wrapper
                 image: busybox:1.36
