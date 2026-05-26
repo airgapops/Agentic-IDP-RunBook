@@ -20,9 +20,9 @@ spec:
           zerops.io/vcluster: "rabbitmq"
           zerops.io/workload: "message-queue"
 ---
-# vcluster-rabbitmq: Cluster virtual para RabbitMQ + Management UI
-# RabbitMQ Management UI en: https://queue.zerops.internal
-# API vcluster accesible en: https://192.168.0.13:32103
+# vcluster-rabbitmq: message-queue
+# Ingress sync habilitado para que los Ingress del vcluster
+# se sincronicen al host K3s donde Traefik los procesa.
 apiVersion: helm.crossplane.io/v1beta1
 kind: Release
 metadata:
@@ -47,6 +47,11 @@ spec:
       syncer:
         extraArgs:
         - --tls-san=192.168.0.13
+        # Habilitar sync de Ingress al host (REQUERIDO en 0.15.5)
+        - --enable-ingress-classes=true
       service:
         type: NodePort
-        httpsNodePort: 32103
+      # Sync de recursos al host K3s
+      sync:
+        ingresses:
+          enabled: true
