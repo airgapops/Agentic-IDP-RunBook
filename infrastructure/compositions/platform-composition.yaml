@@ -42,16 +42,17 @@ spec:
             version: 0.19.5
           namespace: default-ns
           values:
+            # serviceCIDR: top-level helm value that configures BOTH the syncer's
+            # internal CIDR knowledge AND the k3s server --service-cidr flag.
+            # Must match host K3s cluster CIDR (10.43.0.0/16).
+            # Note: --service-cidr is NOT a valid syncer binary flag, only for k3s.
+            serviceCIDR: "10.43.0.0/16"
             vcluster:
               extraArgs:
               - --tls-san=192.168.0.13
-            # cidr-wrapper: init container that wraps the k3s binary to deduplicate
-            # --service-cidr args. The syncer auto-detects (fails on K3s 1.35+) and
-            # appends fallback 10.96.0.0/12. The wrapper strips all --service-cidr
-            # args and injects exactly ONE correct value (10.43.0.0/16 = host CIDR).
+            # cidr-wrapper: extra safety — strips any duplicate --service-cidr args
+            # that the syncer may still auto-append to the k3s command.
             syncer:
-              extraArgs:
-              - --service-cidr=10.43.0.0/16
               extraInitContainers:
               - name: cidr-wrapper
                 image: busybox:1.36
