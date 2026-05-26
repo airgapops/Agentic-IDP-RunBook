@@ -1,7 +1,7 @@
 ---
 # Traefik — IngressController para el host K3s del Ryzen
-# Obtiene IP 192.168.0.200 via MetalLB
-# K3s tiene Traefik deshabilitado via config.yaml (gestionado aquí via Crossplane)
+# NOTA: Sin redirect global HTTP→HTTPS para que ACME HTTP-01 challenge funcione.
+# Los Ingresses de produccion hacen redirect via anotacion individual.
 apiVersion: helm.crossplane.io/v1beta1
 kind: Release
 metadata:
@@ -19,19 +19,15 @@ spec:
       version: "26.1.0"
     namespace: traefik-system
     values:
-      # LoadBalancer via MetalLB → asignará 192.168.0.200
       service:
         type: LoadBalancer
 
-      # Puertos HTTP y HTTPS
       ports:
         web:
           port: 8000
           expose: true
           exposedPort: 80
-          # Redirigir HTTP → HTTPS
-          redirectTo:
-            port: websecure
+          # Sin redirectTo: cert-manager HTTP-01 ACME challenge necesita HTTP puro
         websecure:
           port: 8443
           expose: true
@@ -39,24 +35,19 @@ spec:
           tls:
             enabled: true
 
-      # IngressClass por defecto
       ingressClass:
         enabled: true
         isDefaultClass: true
 
-      # Permitir Ingress y TLS secrets de todos los namespaces
-      # (vclusters sincronizan Ingress al namespace del host)
       providers:
         kubernetesIngress:
           enabled: true
-          allowExternalNameServices: false
           publishedService:
             enabled: true
 
       rbac:
         enabled: true
 
-      # Dashboard deshabilitado (no expuesto públicamente)
       ingressRoute:
         dashboard:
           enabled: false
