@@ -13,8 +13,13 @@ Plataforma soberana air-gapped con dos clusters físicos independientes gestiona
 | Nodo | IP | Rol | OS | Acceso SSH |
 |---|---|---|---|---|
 | Raspberry Pi | `192.168.0.9` | Tier 0 — PKI (Step-CA) + DNS (PowerDNS) | Raspbian | — |
-| ThinkPad | `192.168.0.10` | Tier 1 — Management Cluster (K3s) | — | — |
+| ThinkPad | `192.168.0.10` | Tier 1 — Management Cluster (K3s) | — | SSH bloqueado, usar ArgoCD API |
 | Ryzen | `192.168.0.13` | Tier 2 — Compute Cluster (K3s) + GPU RTX 5060 Ti | Rocky Linux 10 | `ssh admin@192.168.0.13` / pass: `ADMIN123` |
+
+> [!IMPORTANT]
+> **ArgoCD** es accesible desde cualquier nodo en `https://argocd.zerops.internal` — usuario: `admin` / contraseña: `uU285kuivWXq95qD`  
+> **ThinkPad SSH** no accesible remotamente (sin llave SSH configurada). Gestionar via ArgoCD API.  
+> **OpenRouter API Key:** `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`
 
 > [!IMPORTANT]
 > El ThinkPad es `root@rooter` según prompt de shell. Acceso SSH al Ryzen: `ssh admin@192.168.0.13` con password `ADMIN123`.
@@ -76,9 +81,33 @@ Ryzen (192.168.0.13) — Compute Cluster (independiente)
 
 ### vcluster CrashLoopBackOff — CIDR mismatch
 **Síntoma:** `Service "kubernetes" is invalid: spec.clusterIPs: failed to allocate IP 10.43.x.x: not in range 10.96.0.0/12`  
-**Causa:** El syncer de vcluster falla en auto-detectar el Service CIDR del host y cae al fallback `10.96.0.0/12`. El host usa `10.43.0.0/16`.  
-**Fix en composition:** Agregar `syncer.extraArgs: ["--service-cidr=10.43.0.0/16"]`  
-**Limpieza requerida tras fix:** Borrar StatefulSet + PVC en namespace `default-ns` del Ryzen para que Crossplane reconcilie limpio.
+**Causa raíz:** El syncer de vcluster falla en auto-detectar el Service CIDR del host (`10.43.0.0/16`) y cae al fallback `10.96.0.0/12`.
+
+**Historia del fix (3 iteraciones):**
+| Intento | Fix | Error | Por qué falló |
+|---|---|---|---|
+| 1 | `cidr-wrapper` init container en k3s binary | `IP not in range 10.96.0.0/12` | Wrapper arregla k3s pero el syncer tiene su propio CIDR |
+| 2 | `syncer.extraArgs: [--service-cidr=10.43.0.0/16]` | `unknown flag: --service-cidr` | El syncer binary NO acepta ese flag |
+| 3 ✅ | `serviceCIDR: "10.43.0.0/16"` (top-level helm) | — | Configura AMBOS: syncer interno y k3s |
+
+**Fix correcto en platform-composition.yaml:**
+```yaml
+values:
+  serviceCIDR: "10.43.0.0/16"   # ← top-level, NO en syncer.extraArgs
+  vcluster:
+    extraArgs:
+    - --tls-san=192.168.0.13
+  syncer:
+    extraInitContainers: [...]   # cidr-wrapper como seguro adicional
+```
+
+**Limpieza requerida tras aplicar el fix:**
+```bash
+# En Ryzen vía SSH
+echo 'ADMIN123' | sudo -S -k sh -c \
+  'KUBECONFIG=/etc/rancher/k3s/k3s.yaml /usr/local/bin/kubectl delete statefulset -n default-ns <nombre-vcluster> && \
+   KUBECONFIG=/etc/rancher/k3s/k3s.yaml /usr/local/bin/kubectl delete pvc -n default-ns data-<nombre-vcluster>-0'
+```
 
 ### compositeDeletePolicy no soportado
 **Síntoma:** `strict decoding error: unknown field "spec.compositeDeletePolicy"`  
