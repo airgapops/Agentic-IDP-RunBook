@@ -20,9 +20,9 @@ spec:
           zerops.io/vcluster: "postgres"
           zerops.io/workload: "database"
 ---
-# vcluster-postgres: Cluster virtual para PostgreSQL + pgAdmin
-# pgAdmin accesible en: https://db.zerops.internal
-# API vcluster accesible en: https://192.168.0.13:32102
+# vcluster-postgres: database
+# Ingress sync habilitado para que los Ingress del vcluster
+# se sincronicen al host K3s donde Traefik los procesa.
 apiVersion: helm.crossplane.io/v1beta1
 kind: Release
 metadata:
@@ -47,6 +47,11 @@ spec:
       syncer:
         extraArgs:
         - --tls-san=192.168.0.13
+        # Habilitar sync de Ingress al host (REQUERIDO en 0.15.5)
+        - --enable-ingress-classes=true
       service:
         type: NodePort
-        httpsNodePort: 32102
+      # Sync de recursos al host K3s
+      sync:
+        ingresses:
+          enabled: true
