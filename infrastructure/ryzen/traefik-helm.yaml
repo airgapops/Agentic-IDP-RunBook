@@ -1,8 +1,7 @@
 ---
 # Traefik — IngressController para el host K3s del Ryzen
 # Obtiene IP 192.168.0.200 via MetalLB
-# Maneja TLS termination para api/db/queue.zerops.internal
-# K3s tiene Traefik deshabilitado en config.yaml (lo gestionamos aquí via Crossplane)
+# K3s tiene Traefik deshabilitado via config.yaml (gestionado aquí via Crossplane)
 apiVersion: helm.crossplane.io/v1beta1
 kind: Release
 metadata:
@@ -20,25 +19,22 @@ spec:
       version: "26.1.0"
     namespace: traefik-system
     values:
-      # LoadBalancer via MetalLB → 192.168.0.200
+      # LoadBalancer via MetalLB → asignará 192.168.0.200
       service:
         type: LoadBalancer
-        annotations:
-          metallb.universe.tf/address-pool: zerops-pool
 
-      # Puertos: 80 (HTTP) y 443 (HTTPS)
+      # Puertos HTTP y HTTPS
       ports:
         web:
           port: 8000
-          expose:
-            default: true
+          expose: true
           exposedPort: 80
+          # Redirigir HTTP → HTTPS
           redirectTo:
             port: websecure
         websecure:
           port: 8443
-          expose:
-            default: true
+          expose: true
           exposedPort: 443
           tls:
             enabled: true
@@ -47,31 +43,20 @@ spec:
       ingressClass:
         enabled: true
         isDefaultClass: true
-        name: traefik
 
-      # Permitir Ingress de todos los namespaces (vclusters sincronizan aquí)
+      # Permitir Ingress y TLS secrets de todos los namespaces
+      # (vclusters sincronizan Ingress al namespace del host)
       providers:
         kubernetesIngress:
           enabled: true
-          allowCrossNamespace: true
+          allowExternalNameServices: false
           publishedService:
             enabled: true
-        kubernetesCRD:
-          enabled: true
-          allowCrossNamespace: true
 
-      # RBAC para leer Ingress/secrets en todos los namespaces
       rbac:
         enabled: true
 
-      # Dashboard deshabilitado (no expuesto en producción)
+      # Dashboard deshabilitado (no expuesto públicamente)
       ingressRoute:
         dashboard:
-          enabled: false
-
-      # Logs
-      logs:
-        general:
-          level: INFO
-        access:
           enabled: false
