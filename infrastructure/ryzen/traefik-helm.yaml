@@ -1,9 +1,11 @@
 ---
 # Traefik — IngressController para el host K3s del Ryzen
-# NOTAS IMPORTANTES:
-# 1. Sin redirect global HTTP→HTTPS (rompe ACME HTTP-01 challenge de cert-manager)
-# 2. nativeLBByDefault=true: Traefik usa ClusterIP en lugar de pod IPs directos
-#    (necesario porque Flannel VXLAN tiene rutas stale post-reboot en algunos pods)
+# FIXES APLICADOS (2026-05-26):
+# 1. Sin redirect global HTTP→HTTPS (rompe ACME HTTP-01 challenge)
+# 2. hostNetwork: true — Traefik corre en el network namespace del HOST
+#    para alcanzar pod IPs directamente (kube-router deja chains iptables
+#    obsoletas que bloquean pod-to-pod entre Traefik y los solver pods)
+# 3. dnsPolicy: ClusterFirstWithHostNet — DNS cluster sigue funcionando
 apiVersion: helm.crossplane.io/v1beta1
 kind: Release
 metadata:
@@ -41,13 +43,17 @@ spec:
         enabled: true
         isDefaultClass: true
 
+      deployment:
+        # hostNetwork permite a Traefik alcanzar pod IPs directamente
+        # (fix para kube-router iptables chains obsoletas post-reboot)
+        hostNetwork: true
+        dnsPolicy: ClusterFirstWithHostNet
+
       providers:
         kubernetesIngress:
           enabled: true
           publishedService:
             enabled: true
-          # Usar ClusterIP en lugar de pod IPs (fix para Flannel VXLAN post-reboot)
-          nativeLBByDefault: true
 
       rbac:
         enabled: true
@@ -55,7 +61,3 @@ spec:
       ingressRoute:
         dashboard:
           enabled: false
-
-      # Argumento adicional via CLI (doble cobertura del nativeLB fix)
-      additionalArguments:
-        - "--providers.kubernetesingress.nativeLBByDefault=true"
