@@ -1,7 +1,9 @@
 ---
 # Traefik — IngressController para el host K3s del Ryzen
-# NOTA: Sin redirect global HTTP→HTTPS para que ACME HTTP-01 challenge funcione.
-# Los Ingresses de produccion hacen redirect via anotacion individual.
+# NOTAS IMPORTANTES:
+# 1. Sin redirect global HTTP→HTTPS (rompe ACME HTTP-01 challenge de cert-manager)
+# 2. nativeLBByDefault=true: Traefik usa ClusterIP en lugar de pod IPs directos
+#    (necesario porque Flannel VXLAN tiene rutas stale post-reboot en algunos pods)
 apiVersion: helm.crossplane.io/v1beta1
 kind: Release
 metadata:
@@ -27,7 +29,7 @@ spec:
           port: 8000
           expose: true
           exposedPort: 80
-          # Sin redirectTo: cert-manager HTTP-01 ACME challenge necesita HTTP puro
+          # Sin redirectTo: cert-manager ACME HTTP-01 necesita HTTP puro
         websecure:
           port: 8443
           expose: true
@@ -44,6 +46,8 @@ spec:
           enabled: true
           publishedService:
             enabled: true
+          # Usar ClusterIP en lugar de pod IPs (fix para Flannel VXLAN post-reboot)
+          nativeLBByDefault: true
 
       rbac:
         enabled: true
@@ -51,3 +55,7 @@ spec:
       ingressRoute:
         dashboard:
           enabled: false
+
+      # Argumento adicional via CLI (doble cobertura del nativeLB fix)
+      additionalArguments:
+        - "--providers.kubernetesingress.nativeLBByDefault=true"
