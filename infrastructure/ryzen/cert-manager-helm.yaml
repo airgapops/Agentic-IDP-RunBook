@@ -1,0 +1,30 @@
+---
+# cert-manager — Gestión automática de TLS via Step-CA ACME
+# Emite certificados para *.zerops.internal usando HTTP-01 challenge
+apiVersion: helm.crossplane.io/v1beta1
+kind: Release
+metadata:
+  name: cert-manager
+  namespace: crossplane-system
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  providerConfigRef:
+    name: ryzen-helm-cluster
+  forProvider:
+    chart:
+      name: cert-manager
+      repository: https://charts.jetstack.io
+      version: "v1.14.5"
+    namespace: cert-manager
+    values:
+      # Instalar CRDs como parte del chart
+      installCRDs: true
+      # Habilitar liderazgo para HA (single-node OK)
+      replicaCount: 1
+      # Webhook CA injection
+      webhook:
+        enabled: true
+      # cainjector necesario para inyectar CA en webhooks
+      cainjector:
+        enabled: true

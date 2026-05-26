@@ -1,0 +1,52 @@
+---
+# Namespace para vcluster-postgres en Ryzen
+apiVersion: kubernetes.crossplane.io/v1alpha1
+kind: Object
+metadata:
+  name: ns-vcluster-postgres
+  namespace: crossplane-system
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  providerConfigRef:
+    name: ryzen-compute-cluster
+  forProvider:
+    manifest:
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: vcluster-postgres
+        labels:
+          zerops.io/vcluster: "postgres"
+          zerops.io/workload: "database"
+---
+# vcluster-postgres: Cluster virtual para PostgreSQL + pgAdmin
+# pgAdmin accesible en: https://db.zerops.internal
+# API vcluster accesible en: https://192.168.0.13:32102
+apiVersion: helm.crossplane.io/v1beta1
+kind: Release
+metadata:
+  name: vcluster-postgres
+  namespace: crossplane-system
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  providerConfigRef:
+    name: ryzen-helm-cluster
+  forProvider:
+    chart:
+      name: vcluster
+      repository: https://charts.loft.sh
+      version: "0.15.5"
+    namespace: vcluster-postgres
+    values:
+      serviceCIDR: "10.43.0.0/16"
+      vcluster:
+        extraArgs:
+        - --tls-san=192.168.0.13
+      syncer:
+        extraArgs:
+        - --tls-san=192.168.0.13
+      service:
+        type: NodePort
+        httpsNodePort: 32102

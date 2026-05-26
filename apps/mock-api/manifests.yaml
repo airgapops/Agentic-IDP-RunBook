@@ -1,0 +1,84 @@
+---
+# Mock JSON API — devuelve JSON con info del request
+# Imagen: mendhak/http-https-echo (lightweight, returns request as JSON)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mock-api
+  namespace: default
+  labels:
+    app: mock-api
+    zerops.io/workload: mock-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mock-api
+  template:
+    metadata:
+      labels:
+        app: mock-api
+    spec:
+      containers:
+      - name: mock-api
+        image: mendhak/http-https-echo:33
+        ports:
+        - containerPort: 8080
+          name: http
+        env:
+        - name: HTTP_PORT
+          value: "8080"
+        - name: HTTPS_PORT
+          value: "8443"
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 200m
+            memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mock-api
+  namespace: default
+  labels:
+    app: mock-api
+spec:
+  selector:
+    app: mock-api
+  ports:
+  - name: http
+    port: 80
+    targetPort: 8080
+  type: ClusterIP
+---
+# Ingress synced a Traefik del host → https://api.zerops.internal
+# cert-manager emite TLS cert via Step-CA ACME HTTP-01
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: mock-api
+  namespace: default
+  annotations:
+    cert-manager.io/cluster-issuer: step-ca
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+spec:
+  ingressClassName: traefik
+  tls:
+  - hosts:
+    - api.zerops.internal
+    secretName: mock-api-tls
+  rules:
+  - host: api.zerops.internal
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: mock-api
+            port:
+              number: 80

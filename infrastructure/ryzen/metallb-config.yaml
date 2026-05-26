@@ -1,0 +1,46 @@
+---
+# MetalLB IPAddressPool — Pool de IPs para servicios LoadBalancer en Ryzen
+# Asigna 192.168.0.200-205 a servicios de tipo LoadBalancer
+# Traefik obtiene 192.168.0.200 (primera IP del pool)
+apiVersion: kubernetes.crossplane.io/v1alpha1
+kind: Object
+metadata:
+  name: metallb-ippool
+  namespace: crossplane-system
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  providerConfigRef:
+    name: ryzen-compute-cluster
+  forProvider:
+    manifest:
+      apiVersion: metallb.io/v1beta1
+      kind: IPAddressPool
+      metadata:
+        name: zerops-pool
+        namespace: metallb-system
+      spec:
+        addresses:
+        - 192.168.0.200-192.168.0.205
+---
+# MetalLB L2Advertisement — anuncia las IPs del pool via ARP en la LAN
+apiVersion: kubernetes.crossplane.io/v1alpha1
+kind: Object
+metadata:
+  name: metallb-l2advert
+  namespace: crossplane-system
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  providerConfigRef:
+    name: ryzen-compute-cluster
+  forProvider:
+    manifest:
+      apiVersion: metallb.io/v1beta1
+      kind: L2Advertisement
+      metadata:
+        name: zerops-l2
+        namespace: metallb-system
+      spec:
+        ipAddressPools:
+        - zerops-pool

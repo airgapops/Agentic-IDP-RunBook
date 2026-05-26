@@ -1,0 +1,77 @@
+---
+# Traefik — IngressController para el host K3s del Ryzen
+# Obtiene IP 192.168.0.200 via MetalLB
+# Maneja TLS termination para api/db/queue.zerops.internal
+# K3s tiene Traefik deshabilitado en config.yaml (lo gestionamos aquí via Crossplane)
+apiVersion: helm.crossplane.io/v1beta1
+kind: Release
+metadata:
+  name: traefik
+  namespace: crossplane-system
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  providerConfigRef:
+    name: ryzen-helm-cluster
+  forProvider:
+    chart:
+      name: traefik
+      repository: https://helm.traefik.io/traefik
+      version: "26.1.0"
+    namespace: traefik-system
+    values:
+      # LoadBalancer via MetalLB → 192.168.0.200
+      service:
+        type: LoadBalancer
+        annotations:
+          metallb.universe.tf/address-pool: zerops-pool
+
+      # Puertos: 80 (HTTP) y 443 (HTTPS)
+      ports:
+        web:
+          port: 8000
+          expose:
+            default: true
+          exposedPort: 80
+          redirectTo:
+            port: websecure
+        websecure:
+          port: 8443
+          expose:
+            default: true
+          exposedPort: 443
+          tls:
+            enabled: true
+
+      # IngressClass por defecto
+      ingressClass:
+        enabled: true
+        isDefaultClass: true
+        name: traefik
+
+      # Permitir Ingress de todos los namespaces (vclusters sincronizan aquí)
+      providers:
+        kubernetesIngress:
+          enabled: true
+          allowCrossNamespace: true
+          publishedService:
+            enabled: true
+        kubernetesCRD:
+          enabled: true
+          allowCrossNamespace: true
+
+      # RBAC para leer Ingress/secrets en todos los namespaces
+      rbac:
+        enabled: true
+
+      # Dashboard deshabilitado (no expuesto en producción)
+      ingressRoute:
+        dashboard:
+          enabled: false
+
+      # Logs
+      logs:
+        general:
+          level: INFO
+        access:
+          enabled: false

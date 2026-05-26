@@ -1,0 +1,52 @@
+---
+# Namespace para vcluster-rabbitmq en Ryzen
+apiVersion: kubernetes.crossplane.io/v1alpha1
+kind: Object
+metadata:
+  name: ns-vcluster-rabbitmq
+  namespace: crossplane-system
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  providerConfigRef:
+    name: ryzen-compute-cluster
+  forProvider:
+    manifest:
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: vcluster-rabbitmq
+        labels:
+          zerops.io/vcluster: "rabbitmq"
+          zerops.io/workload: "message-queue"
+---
+# vcluster-rabbitmq: Cluster virtual para RabbitMQ + Management UI
+# RabbitMQ Management UI en: https://queue.zerops.internal
+# API vcluster accesible en: https://192.168.0.13:32103
+apiVersion: helm.crossplane.io/v1beta1
+kind: Release
+metadata:
+  name: vcluster-rabbitmq
+  namespace: crossplane-system
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  providerConfigRef:
+    name: ryzen-helm-cluster
+  forProvider:
+    chart:
+      name: vcluster
+      repository: https://charts.loft.sh
+      version: "0.15.5"
+    namespace: vcluster-rabbitmq
+    values:
+      serviceCIDR: "10.43.0.0/16"
+      vcluster:
+        extraArgs:
+        - --tls-san=192.168.0.13
+      syncer:
+        extraArgs:
+        - --tls-san=192.168.0.13
+      service:
+        type: NodePort
+        httpsNodePort: 32103
