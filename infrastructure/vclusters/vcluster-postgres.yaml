@@ -1,5 +1,4 @@
 ---
-# Namespace para vcluster-postgres en Ryzen
 apiVersion: kubernetes.crossplane.io/v1alpha1
 kind: Object
 metadata:
@@ -20,9 +19,6 @@ spec:
           zerops.io/vcluster: "postgres"
           zerops.io/workload: "database"
 ---
-# vcluster-postgres: database
-# Ingress sync habilitado para que los Ingress del vcluster
-# se sincronicen al host K3s donde Traefik los procesa.
 apiVersion: helm.crossplane.io/v1beta1
 kind: Release
 metadata:
@@ -47,11 +43,9 @@ spec:
       syncer:
         extraArgs:
         - --tls-san=192.168.0.13
-        # Habilitar sync de Ingress al host (REQUERIDO en 0.15.5)
-        - --enable-ingress-classes=true
       service:
         type: NodePort
-      # Sync de recursos al host K3s
+      # Habilitar sync de Ingress al host K3s (vcluster 0.15.5)
       sync:
         ingresses:
           enabled: true
