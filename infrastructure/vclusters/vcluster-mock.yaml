@@ -20,9 +20,9 @@ spec:
           zerops.io/vcluster: "mock"
           zerops.io/workload: "mock-api"
 ---
-# vcluster-mock: Cluster virtual para el servicio Mock JSON API
-# Expuesto en: https://api.zerops.internal
-# API vcluster accesible en: https://192.168.0.13:32101
+# vcluster-mock: mock-api
+# Ingress sync habilitado para que los Ingress del vcluster
+# se sincronicen al host K3s donde Traefik los procesa.
 apiVersion: helm.crossplane.io/v1beta1
 kind: Release
 metadata:
@@ -47,7 +47,11 @@ spec:
       syncer:
         extraArgs:
         - --tls-san=192.168.0.13
-      # Exponer API del vcluster como NodePort fijo en 32101
+        # Habilitar sync de Ingress al host (REQUERIDO en 0.15.5)
+        - --enable-ingress-classes=true
       service:
         type: NodePort
-        httpsNodePort: 32101
+      # Sync de recursos al host K3s
+      sync:
+        ingresses:
+          enabled: true
