@@ -52,7 +52,6 @@ Agregar el repositorio CUDA para RHEL 10. Es crítico usar la variante `rhel10`,
 # Agregar repositorio CUDA para RHEL 10
 dnf config-manager --add-repo \
   https://developer.download.nvidia.com/compute/cuda/repos/rhel10/x86_64/cuda-rhel10.repo
-
 # Deshabilitar repo RHEL 9 si existiera
 dnf config-manager --disable cuda-rhel9-x86_64 2>/dev/null || true
 

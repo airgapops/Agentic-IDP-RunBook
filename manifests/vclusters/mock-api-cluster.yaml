@@ -1,0 +1,33 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: vcluster-mock
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://charts.loft.sh
+    chart: vcluster
+    targetRevision: 0.15.5
+    helm:
+      values: |
+        serviceCIDR: "10.43.0.0/16"
+        vcluster:
+          extraArgs:
+          - --tls-san=192.168.0.13
+        syncer:
+          extraArgs:
+          - --tls-san=192.168.0.13
+        service:
+          type: NodePort
+          httpsNodePort: 32101
+  destination:
+    # Asume que registraste el cluster Ryzen en ArgoCD con este nombre
+    name: ryzen
+    namespace: vcluster-mock
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

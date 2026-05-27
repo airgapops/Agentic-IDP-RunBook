@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: mock-api
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://gitea.zerops.internal/jadamson/airgap-ops.git
+    targetRevision: HEAD
+    path: apps/mock-api
+  destination:
+    server: https://api.zerops.internal
+    namespace: default
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
