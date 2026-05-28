@@ -91,8 +91,12 @@ spec:
         - name: VECTOR_DB
           value: "lancedb"                 # Built-in, sin deps externas
         # --- Auth: modo multi-usuario ---
+        # AUTH_TOKEN debe ser un hash bcrypt del password deseado.
+        # AnythingLLM hace: bcrypt.compareSync(password_ingresado, AUTH_TOKEN)
+        # Password de acceso: zerops2028
+        # Regenerar hash: node -e "const b=require('bcryptjs');console.log(b.hashSync('TU_PASS',10))"
         - name: AUTH_TOKEN
-          value: "zerops-llm-2028"         # Cambiar en producción
+          value: "$2b$10$1BdwLkVozdBiKgMH3Fb4c.p1Fnx7RVGFHiTPMgpaFL5pi9Eqm0STS"
         - name: DISABLE_TELEMETRY
           value: "true"
         # --- TLS interno (Step-CA) ---

@@ -1,0 +1,185 @@
+---
+# =============================================================================
+# ollama-ryzen-nvidia.yaml
+# Ollama con NVIDIA RTX 5090 Ti en Ryzen K3s
+# Pre-requisito: ejecutar setup-ollama-nvidia-ryzen.sh en el Ryzen primero
+# Aplicar desde ThinkPad:
+#   kubectl --kubeconfig=/home/rooter/ryzen-kubeconfig.yaml apply -f ollama-ryzen-nvidia.yaml
+# =============================================================================
+
+# --- Namespace ---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ollama-system
+  labels:
+    app.kubernetes.io/part-of: zerops-idp
+---
+# --- NVIDIA Device Plugin DaemonSet ---
+# Permite que K3s exponga la GPU como recurso nvidia.com/gpu
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: nvidia-device-plugin-daemonset
+  namespace: kube-system
+spec:
+  selector:
+    matchLabels:
+      name: nvidia-device-plugin-ds
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        name: nvidia-device-plugin-ds
+    spec:
+      tolerations:
+      - key: nvidia.com/gpu
+        operator: Exists
+        effect: NoSchedule
+      priorityClassName: system-node-critical
+      containers:
+      - image: nvcr.io/nvidia/k8s-device-plugin:v0.17.0
+        name: nvidia-device-plugin-ctr
+        env:
+        - name: FAIL_ON_INIT_ERROR
+          value: "false"
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: ["ALL"]
+        volumeMounts:
+        - name: device-plugin
+          mountPath: /var/lib/kubelet/device-plugins
+      volumes:
+      - name: device-plugin
+        hostPath:
+          path: /var/lib/kubelet/device-plugins
+---
+# --- PVC para modelos LLM (50GB para varios modelos) ---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ollama-models
+  namespace: ollama-system
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 50Gi
+---
+# --- Deployment Ollama con GPU NVIDIA ---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ollama
+  namespace: ollama-system
+  labels:
+    app: ollama
+    gpu: nvidia
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ollama
+  template:
+    metadata:
+      labels:
+        app: ollama
+    spec:
+      runtimeClassName: nvidia    # Requiere containerd configurado con nvidia-ctk
+      containers:
+      - name: ollama
+        image: ollama/ollama:latest
+        ports:
+        - containerPort: 11434
+          name: api
+        env:
+        - name: OLLAMA_HOST
+          value: "0.0.0.0:11434"
+        - name: OLLAMA_ORIGINS
+          value: "*"
+        - name: OLLAMA_MAX_LOADED_MODELS
+          value: "2"
+        - name: NVIDIA_VISIBLE_DEVICES
+          value: "all"
+        - name: NVIDIA_DRIVER_CAPABILITIES
+          value: "compute,utility"
+        volumeMounts:
+        - name: models
+          mountPath: /root/.ollama
+        resources:
+          requests:
+            memory: "4Gi"
+            cpu: "2"
+            nvidia.com/gpu: "1"
+          limits:
+            memory: "20Gi"
+            cpu: "8"
+            nvidia.com/gpu: "1"
+        livenessProbe:
+          httpGet:
+            path: /api/tags
+            port: 11434
+          initialDelaySeconds: 30
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /api/tags
+            port: 11434
+          initialDelaySeconds: 15
+          periodSeconds: 10
+      volumes:
+      - name: models
+        persistentVolumeClaim:
+          claimName: ollama-models
+---
+# --- Service NodePort (accesible desde ThinkPad en 192.168.0.13:31434) ---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ollama
+  namespace: ollama-system
+  labels:
+    app: ollama
+spec:
+  type: NodePort
+  selector:
+    app: ollama
+  ports:
+  - port: 11434
+    targetPort: 11434
+    nodePort: 31434
+    name: api
+---
+# --- Job: Pre-pull modelos al iniciar ---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: ollama-pull-models
+  namespace: ollama-system
+spec:
+  template:
+    spec:
+      restartPolicy: OnFailure
+      initContainers:
+      - name: wait-for-ollama
+        image: curlimages/curl:latest
+        command: ['sh', '-c', 'until curl -sf http://ollama:11434/api/tags; do echo waiting...; sleep 5; done']
+      containers:
+      - name: pull-models
+        image: curlimages/curl:latest
+        command:
+        - sh
+        - -c
+        - |
+          echo "Pulling hermes3:8b..."
+          curl -X POST http://ollama:11434/api/pull \
+            -H "Content-Type: application/json" \
+            -d '{"name":"hermes3:8b"}' --no-buffer
+          echo "Pulling llama3.1:8b..."
+          curl -X POST http://ollama:11434/api/pull \
+            -H "Content-Type: application/json" \
+            -d '{"name":"llama3.1:8b"}' --no-buffer
+          echo "Models ready!"

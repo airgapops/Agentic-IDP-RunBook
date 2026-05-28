@@ -1,0 +1,40 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: install-ollama-host
+  namespace: kube-system
+spec:
+  ttlSecondsAfterFinished: 3600
+  template:
+    spec:
+      hostPID: true
+      hostNetwork: true
+      hostIPC: true
+      nodeSelector:
+        kubernetes.io/hostname: localhost.localdomain
+      restartPolicy: Never
+      containers:
+      - name: installer
+        image: rockylinux:10
+        securityContext:
+          privileged: true
+        command:
+        - nsenter
+        - "--target"
+        - "1"
+        - "--mount"
+        - "--uts"
+        - "--ipc"
+        - "--net"
+        - "--pid"
+        - bash
+        - /host-installer.sh
+        volumeMounts:
+        - name: installer-script
+          mountPath: /host-installer.sh
+          subPath: host-installer.sh
+      volumes:
+      - name: installer-script
+        configMap:
+          name: ollama-installer-script
+          defaultMode: 0755

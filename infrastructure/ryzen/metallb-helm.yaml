@@ -1,0 +1,25 @@
+---
+# MetalLB — L2 Load Balancer para el host K3s del Ryzen
+# Prerequisito: K3s debe tener servicelb deshabilitado (--disable=servicelb)
+# Instala MetalLB via Helm en el Ryzen cluster
+apiVersion: helm.crossplane.io/v1beta1
+kind: Release
+metadata:
+  name: metallb
+  namespace: crossplane-system
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  providerConfigRef:
+    name: ryzen-helm-cluster
+  forProvider:
+    chart:
+      name: metallb
+      repository: https://metallb.github.io/metallb
+      version: "0.14.5"
+    namespace: metallb-system
+    values:
+      # L2 mode para red 192.168.0.0/24
+      speaker:
+        frr:
+          enabled: false
