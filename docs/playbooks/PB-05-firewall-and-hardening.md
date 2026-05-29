@@ -42,7 +42,7 @@ El entorno está segmentado en cuatro zonas de confianza. El tráfico únicament
 ║  │  ZONA 0 — Tier-0: Infraestructura Raíz (Trust: MÁXIMO)                   │  ║
 ║  │                                                                           │  ║
 ║  │  ┌──────────────────────────────────────────────────────────────────┐    │  ║
-║  │  │  🍓 Raspberry Pi — 192.168.0.200                                 │    │  ║
+║  │  │  🍓 Raspberry Pi — 192.168.0.9                                   │    │  ║
 ║  │  │     Ubuntu ARM64                                                  │    │  ║
 ║  │  │     • PowerDNS  :53 TCP/UDP  (DNS autoritativo zerops.internal)  │    │  ║
 ║  │  │     • Step-CA   :9000        (PKI / ACME endpoint)               │    │  ║
@@ -102,12 +102,12 @@ El entorno está segmentado en cuatro zonas de confianza. El tráfico únicament
 | Mac (192.168.0.x)          | ThinkPad (192.168.0.10)     | `443/TCP`              | HTTPS — Envoy Gateway (choreo/argocd/gitea)            | ✅           |
 | Mac (192.168.0.x)          | ThinkPad (192.168.0.10)     | `6443/TCP`             | kubectl al Management Cluster K3s                      | ✅           |
 | Mac (192.168.0.x)          | Ryzen (192.168.0.13)        | `22/TCP`               | SSH — administración del nodo                          | ✅           |
-| ThinkPad (192.168.0.10)    | Raspberry Pi (192.168.0.200)| `53/TCP+UDP`           | Resolución DNS interna (zerops.internal)               | ✅           |
-| ThinkPad (192.168.0.10)    | Raspberry Pi (192.168.0.200)| `9000/TCP`             | Step-CA ACME — cert-manager obtiene certificados TLS   | ✅           |
+| ThinkPad (192.168.0.10)    | Raspberry Pi (192.168.0.9)  | `53/TCP+UDP`           | Resolución DNS interna (zerops.internal)               | ✅           |
+| ThinkPad (192.168.0.10)    | Raspberry Pi (192.168.0.9)  | `9000/TCP`             | Step-CA ACME — cert-manager obtiene certificados TLS   | ✅           |
 | ThinkPad (192.168.0.10)    | Ryzen (192.168.0.13)        | `6443/TCP`             | K8s API — Crossplane + provider-helm gestionan Ryzen   | ✅           |
 | ThinkPad (192.168.0.10)    | Ryzen (192.168.0.13)        | `8472/UDP`             | Flannel VXLAN — overlay de red entre nodos K3s         | ✅           |
 | ThinkPad (192.168.0.10)    | Ryzen (192.168.0.13)        | `10250/TCP`            | Metrics Server / kubelet read-only (si se necesita)    | ⚠️           |
-| Ryzen (192.168.0.13)       | Raspberry Pi (192.168.0.200)| `53/TCP+UDP`           | Resolución DNS interna desde pods y nodo               | ✅           |
+| Ryzen (192.168.0.13)       | Raspberry Pi (192.168.0.9)  | `53/TCP+UDP`           | Resolución DNS interna desde pods y nodo               | ✅           |
 | Ryzen (192.168.0.13)       | ThinkPad (192.168.0.10)     | `8472/UDP`             | Flannel VXLAN — overlay de red (bidireccional)         | ✅           |
 
 ### 2.2 Flujos Internos al Nodo (loopback only)
@@ -144,12 +144,12 @@ El entorno está segmentado en cuatro zonas de confianza. El tráfico únicament
 
 ---
 
-### 3.1 🍓 Raspberry Pi (192.168.0.200) — DNS + PKI
+### 3.1 🍓 Raspberry Pi (192.168.0.9) — DNS + PKI
 
 ```bash
 #!/usr/bin/env bash
 # =============================================================================
-# UFW Rules — Raspberry Pi (192.168.0.200)
+# UFW Rules — Raspberry Pi (192.168.0.9)
 # Rol: DNS autoritativo (PowerDNS) + PKI (Step-CA)
 # =============================================================================
 
@@ -672,24 +672,67 @@ sudo ./kube-bench --benchmark cis-1.9 | grep -E "^\[FAIL\]"
 
 **Configuraciones críticas de K3s para cumplir CIS:**
 
-```bash
+```yaml
 # En el archivo de configuración K3s: /etc/rancher/k3s/config.yaml
-# (Aplicar según el rol del nodo)
+# (Aplicar en ThinkPad y Ryzen para pasar la auditoría kube-bench)
 
-# Servidor (ThinkPad — Management Cluster):
-# kube-apiserver:
-#   - --anonymous-auth=false
-#   - --audit-log-path=/var/lib/rancher/k3s/server/audit.log
-#   - --audit-log-maxage=30
-#   - --audit-log-maxbackup=10
-#   - --audit-log-maxsize=100
-#   - --tls-min-version=VersionTLS12
-#
-# kube-controller-manager:
-#   - --terminated-pod-gc-threshold=10
-#
-# Referencia completa: https://docs.k3s.io/security/hardening-guide
+# Deshabilitar servicios innecesarios expuestos
+disable:
+  - traefik
+
+# Parámetros del API Server (ThinkPad - Management Cluster)
+kube-apiserver-arg:
+  - "anonymous-auth=false"
+  - "audit-log-path=/var/lib/rancher/k3s/server/audit.log"
+  - "audit-log-maxage=30"
+  - "audit-log-maxbackup=10"
+  - "audit-log-maxsize=100"
+  - "tls-min-version=VersionTLS12"
+  - "tls-cipher-suites=TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_CHACHA20_POLY1305_SHA256"
+  - "authorization-mode=Node,RBAC"
+
+# Parámetros del Kubelet (Aplicar en todos los nodos K3s)
+kubelet-arg:
+  - "anonymous-auth=false"
+  - "protect-kernel-defaults=true"
+  - "make-iptables-util-chains=true"
+
+# Parámetros del Controller Manager
+kube-controller-manager-arg:
+  - "terminated-pod-gc-threshold=10"
+  - "use-service-account-credentials=true"
+
+# Parámetros del Scheduler
+kube-scheduler-arg:
+  - "profiling=false"
 ```
+
+**Pasos adicionales para habilitar el Hardening de K3s:**
+1. Crear el usuario `etcd` y securizar permisos de directorios:
+   ```bash
+   sudo chown -R root:root /var/lib/rancher/k3s/server/
+   sudo chmod 700 /var/lib/rancher/k3s/server/
+   ```
+2. Crear archivo de políticas de auditoría (`/var/lib/rancher/k3s/server/audit.yaml`) para registrar accesos al API Server:
+   ```yaml
+   apiVersion: audit.k8s.io/v1
+   kind: Policy
+   rules:
+   - level: RequestResponse
+     resources:
+     - group: ""
+       resources: ["pods"]
+   - level: Metadata
+     resources:
+     - group: ""
+       resources: ["secrets", "configmaps"]
+   ```
+3. Reiniciar el servicio de K3s para aplicar los argumentos:
+   ```bash
+   sudo systemctl restart k3s
+   ```
+
+Referencia oficial completa: [K3s CIS Hardening Guide](https://docs.k3s.io/security/hardening-guide)
 
 ---
 
@@ -769,7 +812,7 @@ sudo ss -tulpn | grep ':8081' | grep -v '127.0.0.1' \
   && echo "⚠️  ALERTA: PowerDNS API escucha en interfaz pública!" \
   || echo "OK: PowerDNS API solo en localhost"
 # Desde otro nodo de la LAN:
-# nmap -p 8081 192.168.0.200  # debe aparecer como filtered/closed
+# nmap -p 8081 192.168.0.9  # debe aparecer como filtered/closed
 echo ""
 
 # --- 5. Auditar K3s con kube-bench (en nodos K3s) ---
@@ -826,7 +869,7 @@ Completar esta checklist en todos los nodos antes de considerar el hardening com
 - [ ] **UFW activo en Raspberry Pi** — `sudo ufw status` retorna `Status: active`
 - [ ] **UFW activo en ThinkPad** — `sudo ufw status` retorna `Status: active`
 - [ ] **UFW activo en Ryzen** — `sudo ufw status` retorna `Status: active`
-- [ ] **Puerto 8081 (PowerDNS API) solo en localhost** — `nmap -p 8081 192.168.0.200` desde LAN retorna `filtered` o `closed`
+- [ ] **Puerto 8081 (PowerDNS API) solo en localhost** — `nmap -p 8081 192.168.0.9` desde LAN retorna `filtered` o `closed`
 - [ ] **Puerto 2379-2380 (etcd) solo en loopback en ThinkPad** — `nmap -p 2379,2380 192.168.0.10` desde LAN retorna `filtered` o `closed`
 - [ ] **Puerto 2379-2380 (etcd) solo en loopback en Ryzen** — `nmap -p 2379,2380 192.168.0.13` desde LAN retorna `filtered` o `closed`
 - [ ] **K8s API del Ryzen (6443) solo accesible desde ThinkPad** — `nmap -p 6443 192.168.0.13` desde Mac retorna `filtered`

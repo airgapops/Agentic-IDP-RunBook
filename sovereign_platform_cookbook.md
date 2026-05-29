@@ -17,7 +17,7 @@ graph TD
 
     subgraph Tier 1: Clúster de Gestión y Borde (ThinkPad - 192.168.0.10)
         K3s_Mgmt[K3s Management Cluster]
-        MetalLB[MetalLB LoadBalancer / IP: 192.168.0.200]
+        MetalLB[MetalLB LoadBalancer / IP: 192.168.0.203]
         Envoy[Envoy Gateway / Gateway API]
         CertManager[cert-manager / ACME Client]
         ExtDNS[ExternalDNS / pdns dynamic sync]
@@ -78,7 +78,7 @@ sshpass -p 'Panama2028#...' ssh -o PubkeyAuthentication=no -o StrictHostKeyCheck
 
 ### 2. Balanceador de Carga: MetalLB
 Permite asignar direcciones IP reales de la red LAN a los servicios y gateways del clúster físico.
-*   **Rango de IPs asignadas**: `192.168.0.200-192.168.0.200` (Reservada exclusivamente para el Gateway Envoy).
+*   **IP activa asignada**: `192.168.0.203` (Reservada exclusivamente para el Gateway Envoy vía pool MetalLB `192.168.0.201-250`).
 
 ### 3. Puerta de Enlace Envoy: Gateway API
 Reemplaza el clásico controlador Ingress con la especificación moderna de Kubernetes Gateway API.
@@ -481,12 +481,12 @@ spec:
 ## 2. Pruebas de Validación y Bitácora de Éxito
 
 ### 1. Resolución Dinámica y Handshake TLS Seguro
-Ejecutando un curl con mapeo SNI resuelto directamente a la IP del LoadBalancer local de Envoy (`192.168.0.200`) se obtiene una conexión segura validada correctamente por Step-CA sin requerir parámetros inseguros:
+Ejecutando un curl con mapeo SNI resuelto directamente a la IP del LoadBalancer local de Envoy (`192.168.0.203`) se obtiene una conexión segura validada correctamente por Step-CA sin requerir parámetros inseguros:
 
 ```bash
-rooter@192.168.0.10:~$ curl -vI https://choreo.zerops.internal --resolve choreo.zerops.internal:443:192.168.0.200
+rooter@192.168.0.10:~$ curl -vI https://choreo.zerops.internal --resolve choreo.zerops.internal:443:192.168.0.203
 
-* Connected to choreo.zerops.internal (192.168.0.200) port 443
+* Connected to choreo.zerops.internal (192.168.0.203) port 443
 * ALPN: server accepted h2
 * Server certificate:
 *  subject: CN=choreo.zerops.internal
@@ -509,8 +509,8 @@ Al desplegarse y validarse la ruta de OpenChoreo, el componente `external-dns` r
 
 ```bash
 rooter@192.168.0.10:~$ kubectl logs -n kube-system deployment/external-dns --tail 5
-time="2026-05-22T03:27:37Z" level=info msg="CREATE: choreo.zerops.internal 0 IN A  192.168.0.200 []"
-time="2026-05-22T03:27:37Z" level=info msg="CREATE: argocd.zerops.internal 0 IN A  192.168.0.200 []"
-time="2026-05-22T03:27:37Z" level=info msg="CREATE: gitea.zerops.internal 0 IN A  192.168.0.200 []"
+time="2026-05-22T03:27:37Z" level=info msg="CREATE: choreo.zerops.internal 0 IN A  192.168.0.203 []"
+time="2026-05-22T03:27:37Z" level=info msg="CREATE: argocd.zerops.internal 0 IN A  192.168.0.203 []"
+time="2026-05-22T03:27:37Z" level=info msg="CREATE: gitea.zerops.internal 0 IN A  192.168.0.203 []"
 time="2026-05-22T03:27:37Z" level=info msg="Changes pushed out to PowerDNS in 35.642884ms"
 ```

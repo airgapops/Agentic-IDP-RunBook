@@ -20,7 +20,7 @@ Este playbook convierte el Ryzen en el Compute Cluster de la plataforma Zerops. 
 ### Hardware de referencia en este IDP
 | Nodo | IP | Rol |
 |---|---|---|
-| Raspberry Pi 4 | `192.168.0.200` | DNS + PKI (PB-00) ✅ |
+| Raspberry Pi 4 | `192.168.0.9` | DNS + PKI (PB-00) ✅ |
 | ThinkPad | `192.168.0.10` | Management Cluster (PB-01) ✅ |
 | Ryzen | `192.168.0.13` | Compute Node (este PB) |
 
@@ -49,7 +49,7 @@ Este playbook convierte el Ryzen en el Compute Cluster de la plataforma Zerops. 
 **1. Verificar IP estática y conectividad:**
 ```bash
 ip addr show | grep 192.168.0.13
-ping -c 3 192.168.0.200   # Raspberry Pi (DNS)
+ping -c 3 192.168.0.9   # Raspberry Pi (DNS)
 ping -c 3 192.168.0.10    # ThinkPad (Management)
 ```
 
@@ -58,7 +58,7 @@ ping -c 3 192.168.0.10    # ThinkPad (Management)
 sudo mkdir -p /etc/systemd/resolved.conf.d
 sudo tee /etc/systemd/resolved.conf.d/zerops-dns.conf <<EOF
 [Resolve]
-DNS=192.168.0.200
+DNS=192.168.0.9
 Domains=zerops.internal
 DNSStubListener=no
 EOF
@@ -68,8 +68,8 @@ sudo systemctl restart systemd-resolved
 
 **3. Verificar resolución DNS:**
 ```bash
-dig @192.168.0.200 step-ca.zerops.internal
-# Debe retornar 192.168.0.200
+dig @192.168.0.9 step-ca.zerops.internal
+# Debe retornar 192.168.0.9
 ```
 
 ---
@@ -78,7 +78,7 @@ dig @192.168.0.200 step-ca.zerops.internal
 
 **1. Copiar el certificado raíz desde el Raspberry Pi:**
 ```bash
-scp pi@192.168.0.200:~/zerops-network/root_ca.crt ~/root_ca.crt
+scp pi@192.168.0.9:~/zerops-network/root_ca.crt ~/root_ca.crt
 ```
 
 **2. Inyectar en el trust store del OS:**
@@ -267,7 +267,7 @@ kubectl delete object test-namespace-ryzen
 curl -X PATCH -H "X-API-Key: super-secret-api-key-zerops" \
   -H "Content-Type: application/json" \
   -d '{"rrsets": [{"name": "ryzen.zerops.internal.", "type": "A", "ttl": 300, "changetype": "REPLACE", "records": [{"content": "192.168.0.13", "disabled": false}]}]}' \
-  http://192.168.0.200:8081/api/v1/servers/localhost/zones/zerops.internal.
+  http://192.168.0.9:8081/api/v1/servers/localhost/zones/zerops.internal.
 ```
 
 ---

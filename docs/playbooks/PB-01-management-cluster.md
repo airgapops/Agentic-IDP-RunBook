@@ -3,7 +3,7 @@
 
 Este playbook convierte el ThinkPad en el Management Cluster de la plataforma Zerops Sovereign IDP. Aquí viven Crossplane, ArgoCD, cert-manager, Envoy Gateway, Gitea y Backstage. Este nodo es el cerebro del sistema: emite órdenes al Ryzen (PB-02) y expone el Developer Portal a los equipos.
 
-> ⚠️ **Prerequisito obligatorio:** El PB-00 debe estar completo. El Raspberry Pi (`192.168.0.200`) debe estar respondiendo en el puerto 53 (DNS) y el archivo `root_ca.crt` debe estar disponible localmente.
+> ⚠️ **Prerequisito obligatorio:** El PB-00 debe estar completo. El Raspberry Pi (`192.168.0.9`) debe estar respondiendo en el puerto 53 (DNS) y el archivo `root_ca.crt` debe estar disponible localmente.
 
 ---
 
@@ -20,7 +20,7 @@ Este playbook convierte el ThinkPad en el Management Cluster de la plataforma Ze
 ### Hardware de referencia en este IDP
 | Nodo | IP | Rol |
 |---|---|---|
-| Raspberry Pi 4 | `192.168.0.200` | DNS + PKI (PB-00) ✅ |
+| Raspberry Pi 4 | `192.168.0.9` | DNS + PKI (PB-00) ✅ |
 | ThinkPad | `192.168.0.10` | Management Cluster (este PB) |
 | Ryzen | `192.168.0.13` | Compute Node (PB-02) |
 
@@ -57,7 +57,7 @@ Este playbook convierte el ThinkPad en el Management Cluster de la plataforma Ze
 **1. Verificar IP estática y conectividad al Raspberry Pi:**
 ```bash
 ip addr show | grep 192.168.0.10
-ping -c 3 192.168.0.200
+ping -c 3 192.168.0.9
 ```
 
 **2. Configurar DNS apuntando al Raspberry Pi:**
@@ -65,7 +65,7 @@ ping -c 3 192.168.0.200
 sudo mkdir -p /etc/systemd/resolved.conf.d
 sudo tee /etc/systemd/resolved.conf.d/zerops-dns.conf <<EOF
 [Resolve]
-DNS=192.168.0.200
+DNS=192.168.0.9
 Domains=zerops.internal
 DNSStubListener=no
 EOF
@@ -75,8 +75,8 @@ sudo systemctl restart systemd-resolved
 
 **3. Verificar resolución DNS:**
 ```bash
-dig @192.168.0.200 step-ca.zerops.internal
-# Debe retornar 192.168.0.200
+dig @192.168.0.9 step-ca.zerops.internal
+# Debe retornar 192.168.0.9
 ```
 
 ---
@@ -88,7 +88,7 @@ El archivo `root_ca.crt` debe ser copiado desde el Raspberry Pi.
 **1. Copiar el certificado raíz:**
 ```bash
 # Opción A: desde el Raspberry Pi directamente
-scp pi@192.168.0.200:~/zerops-network/root_ca.crt ~/root_ca.crt
+scp pi@192.168.0.9:~/zerops-network/root_ca.crt ~/root_ca.crt
 
 # Opción B: si se tiene acceso al contenedor
 # (ejecutar en el Raspberry Pi y copiar el output)
@@ -218,26 +218,22 @@ kubectl get clusterissuers
 
 ---
 
-### Fase 5: Instalar Envoy Gateway
+### Fase 5: Instalar Envoy Gateway (v1.2.1)
 
-**1. Agregar repo y crear namespace:**
+> [!NOTE]
+> **Contexto de Actualización y Solución de CrashLoop:**
+> En la instalación original se utilizaba Envoy Gateway `v1.0.1`. Sin embargo, al coexistir con la API de KGateway (Gloo), la GatewayClass exponía una estructura de `supportedFeatures` incompatible con la biblioteca de cliente antigua, lo que provocaba un CrashLoop del controlador. La actualización a **`v1.2.1`** vía server-side apply resolvió esta incompatibilidad de esquema.
+>
+> Adicionalmente, el pool original de MetalLB en el clúster de gestión abarcaba `192.168.0.200-250`. La IP `.200` está físicamente ocupada por el router de red de la LAN corporativa (Linksys). Esto provocaba que Envoy Gateway obtuviera la IP `.200` y causara colisiones ARP severas y fallos de timeout de red. Se reconfiguró el pool para iniciar a partir de **`192.168.0.201-250`**, logrando que Envoy Gateway adquiera de forma limpia la IP **`192.168.0.203`**.
+
+**1. Instalar Envoy Gateway v1.2.1 usando server-side apply:**
 ```bash
-helm repo add envoy-gateway https://charts.envoyproxy.io
-helm repo update
-
-kubectl create namespace envoy-gateway-system
-```
-
-**2. Instalar Envoy Gateway:**
-```bash
-helm install eg envoy-gateway/gateway \
-  --namespace envoy-gateway-system \
-  --version v1.1.2
+kubectl apply --server-side -f https://github.com/envoyproxy/gateway/releases/download/v1.2.1/install.yaml
 
 kubectl -n envoy-gateway-system rollout status deployment/envoy-gateway
 ```
 
-**3. Crear la GatewayClass:**
+**2. Crear la GatewayClass:**
 ```bash
 kubectl apply -f - <<EOF
 apiVersion: gateway.networking.k8s.io/v1
@@ -249,7 +245,7 @@ spec:
 EOF
 ```
 
-**4. Crear el Gateway principal:**
+**3. Crear el Gateway principal:**
 ```bash
 kubectl apply -f - <<EOF
 apiVersion: gateway.networking.k8s.io/v1
@@ -329,8 +325,8 @@ EOF
 ```bash
 curl -X PATCH -H "X-API-Key: super-secret-api-key-zerops" \
   -H "Content-Type: application/json" \
-  -d '{"rrsets": [{"name": "gitea.zerops.internal.", "type": "A", "ttl": 300, "changetype": "REPLACE", "records": [{"content": "192.168.0.10", "disabled": false}]}]}' \
-  http://192.168.0.200:8081/api/v1/servers/localhost/zones/zerops.internal.
+  -d '{"rrsets": [{"name": "gitea.zerops.internal.", "type": "A", "ttl": 300, "changetype": "REPLACE", "records": [{"content": "192.168.0.203", "disabled": false}]}]}' \
+  http://192.168.0.9:8081/api/v1/servers/localhost/zones/zerops.internal.
 ```
 
 **5. Crear el repositorio airgap-ops en Gitea:**
@@ -399,8 +395,8 @@ EOF
 ```bash
 curl -X PATCH -H "X-API-Key: super-secret-api-key-zerops" \
   -H "Content-Type: application/json" \
-  -d '{"rrsets": [{"name": "argocd.zerops.internal.", "type": "A", "ttl": 300, "changetype": "REPLACE", "records": [{"content": "192.168.0.10", "disabled": false}]}]}' \
-  http://192.168.0.200:8081/api/v1/servers/localhost/zones/zerops.internal.
+  -d '{"rrsets": [{"name": "argocd.zerops.internal.", "type": "A", "ttl": 300, "changetype": "REPLACE", "records": [{"content": "192.168.0.203", "disabled": false}]}]}' \
+  http://192.168.0.9:8081/api/v1/servers/localhost/zones/zerops.internal.
 ```
 
 **6. Crear el App-of-Apps raíz:**

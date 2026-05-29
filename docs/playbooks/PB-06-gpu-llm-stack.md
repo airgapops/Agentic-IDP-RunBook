@@ -528,6 +528,89 @@ hermes model
 
 ---
 
+## 🔌 Paso 9 — Integración de IA con el Portal OpenChoreo (Backstage Assistant)
+
+OpenChoreo cuenta con un asistente inteligente integrado a nivel de frontend de Backstage, controlado por dos variables del Control Plane:
+*   `OPENCHOREO_FEATURES_ASSISTANT_ENABLED`: Habilita/deshabilita la pestaña del asistente de chat en la UI.
+*   `OPENCHOREO_PORTAL_ASSISTANT_URL`: Apunta al backend `portal-assistant` que actúa como puente / proxy hacia el LLM.
+
+### 9.1 — Arquitectura de Integración con el Motor Local (Ryzen GPU)
+
+Para lograr inferencia offline soberana 100% air-gapped en la plataforma, diseñamos dos flujos de integración:
+
+#### Opción A: Enrutamiento Directo a Ollama Local (Inferencia Directa)
+El servicio `portal-assistant` se conecta directamente al endpoint compatible con OpenAI expuesto por Ollama en el Ryzen:
+
+```text
+┌─────────────────────────────────┐
+│     Consola OpenChoreo (UI)     │
+└─────────────────────────────────┘
+                 │
+                 ▼ (FEATURE_ASSISTANT habilitado)
+┌─────────────────────────────────┐
+│    portal-assistant backend     │
+└─────────────────────────────────┘
+                 │
+                 ▼ (OpenAI-compatible API URL)
+┌─────────────────────────────────┐
+│   Ollama en Ryzen (Puerto 11434)│
+│          qwen2.5:14b            │
+└─────────────────────────────────┘
+```
+
+**Configuración en `openchoreo-app.yaml`:**
+Modificar el deployment de `portal-assistant` para inyectar las siguientes variables:
+```yaml
+        env:
+        - name: OPENCHOREO_FEATURES_ASSISTANT_ENABLED
+          value: "true"
+        - name: OPENCHOREO_PORTAL_ASSISTANT_URL
+          value: "http://portal-assistant.openchoreo-control-plane.svc.cluster.local:8080"
+        - name: OPENAI_API_BASE
+          value: "http://192.168.0.13:11434/v1"
+        - name: OPENAI_API_KEY
+          value: "ollama" # Requerido por la librería cliente pero ignorado por Ollama
+        - name: OPENAI_MODEL
+          value: "qwen2.5:14b"
+```
+
+#### Opción B: Integración Agéntica Avanzada con Hermes Agent
+En lugar de inferencia estática, enrutamos las peticiones al **Hermes Agent** corriendo en la infraestructura. Esto permite al asistente de Backstage **ejecutar herramientas** (ej. consultar estado del clúster, listar namespaces de vcluster, consultar catálogos) a través de las capacidades de Tool Calling de `qwen2.5:14b`:
+
+```text
+┌─────────────────────────────────┐
+│     Consola OpenChoreo (UI)     │
+└─────────────────────────────────┘
+                 │
+                 ▼
+┌─────────────────────────────────┐
+│    portal-assistant backend     │
+└─────────────────────────────────┘
+                 │
+                 ▼ (Custom agent connector)
+┌─────────────────────────────────┐
+│          Hermes Agent           │ (Conexión al kube-api y logs del cluster)
+└─────────────────────────────────┘
+                 │
+                 ▼ (Inferencia de Tool Calling)
+┌─────────────────────────────────┐
+│        Ollama en Ryzen          │
+│          qwen2.5:14b            │
+└─────────────────────────────────┘
+```
+
+**Configuración del Conector Hermes:**
+Configure `portal-assistant` para que se comunique con el endpoint de servicio de Hermes:
+```yaml
+        env:
+        - name: OPENAI_API_BASE
+          value: "http://hermes-agent-service.openchoreo-control-plane.svc.cluster.local:8080/v1"
+        - name: OPENAI_MODEL
+          value: "hermes-agent"
+```
+
+---
+
 ## 🏁 Estado Esperado Final
 
 Tras completar todos los pasos, el sistema debe mostrar el siguiente estado:

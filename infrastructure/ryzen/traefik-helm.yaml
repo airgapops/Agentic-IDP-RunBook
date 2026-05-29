@@ -1,6 +1,6 @@
 ---
 # Traefik — IngressController para el host K3s del Ryzen
-# Obtiene IP 192.168.0.200 via MetalLB
+# Obtiene IP 192.168.0.240 via MetalLB
 # K3s tiene Traefik deshabilitado via config.yaml (gestionado aquí via Crossplane)
 apiVersion: helm.crossplane.io/v1beta1
 kind: Release
@@ -19,7 +19,7 @@ spec:
       version: "26.1.0"
     namespace: traefik-system
     values:
-      # LoadBalancer via MetalLB → asignará 192.168.0.200
+      # LoadBalancer via MetalLB → asignará 192.168.0.240
       service:
         type: LoadBalancer
 

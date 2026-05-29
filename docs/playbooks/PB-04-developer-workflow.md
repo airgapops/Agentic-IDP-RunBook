@@ -23,9 +23,9 @@ sudo cp zerops-root-ca.crt /usr/local/share/ca-certificates/
 sudo update-ca-certificates
 
 # 2. Agregar entradas DNS en tu /etc/hosts (si no tienes DNS corporativo)
-echo "192.168.0.10  choreo.zerops.internal" | sudo tee -a /etc/hosts
-echo "192.168.0.10  argocd.zerops.internal" | sudo tee -a /etc/hosts
-echo "192.168.0.10  gitea.zerops.internal" | sudo tee -a /etc/hosts
+echo "192.168.0.203  choreo.zerops.internal" | sudo tee -a /etc/hosts
+echo "192.168.0.203  argocd.zerops.internal" | sudo tee -a /etc/hosts
+echo "192.168.0.203  gitea.zerops.internal" | sudo tee -a /etc/hosts
 
 # 3. Obtener acceso kubectl al ThinkPad
 ssh usuario@192.168.0.10
@@ -379,6 +379,35 @@ kubectl --kubeconfig=/etc/rancher/k3s/k3s.yaml get ns | grep mi-equipo
 
 ---
 
+## 🔧 Resolución de Problemas de Infraestructura y GitOps
+
+### Problema 1: Registro DNS Inestable o en Bucle en PowerDNS (ExternalDNS Bouncing)
+
+**Síntoma:**
+La URL `choreo.zerops.internal` cambia intermitentemente entre devolver error de red y funcionar, o el log de `external-dns` muestra constantes operaciones `CREATE` y `DELETE` para el mismo registro.
+
+**Causa:**
+Existencia de manifiestos con rutas HTTPRoute duplicadas en diferentes namespaces (por ejemplo, una ruta en `openchoreo-system` y otra en el namespace `default`). ExternalDNS procesa ambas definiciones de forma asíncrona, provocando que se pisen mutuamente la asignación en PowerDNS y desestabilicen los registros de la zona `zerops.internal`.
+
+**Solución:**
+1. Buscar rutas duplicadas en el clúster de gestión:
+   ```bash
+   kubectl get httproutes -A
+   ```
+2. Depurar y limpiar los manifiestos GitOps eliminando la ruta duplicada e innecesaria (por ejemplo, el `openchoreo-route` duplicado que se inyectaba en `openchoreo-system` cuando ya existía el enrutamiento correcto unificado).
+3. Asegurar que las rutas HTTP (como las APIs internas HTTP en puerto 8080 que no se quieren exponer a resolución DNS externa) estén anotadas con la directiva de exclusión:
+   ```yaml
+   metadata:
+     annotations:
+       external-dns.alpha.kubernetes.io/controller: "non-existent-controller"
+   ```
+4. Forzar la sincronización en ArgoCD:
+   ```bash
+   kubectl -n argocd patch application platform-root --type merge -p '{"operation": {"sync": {"revision": "HEAD"}}}'
+   ```
+
+---
+
 ## 📖 Referencia de Comandos del Día a Día
 
 ### Comandos en el ThinkPad (Management)
@@ -466,17 +495,21 @@ kubectl -n mi-namespace delete all --all
 curl -X PATCH -H "X-API-Key: super-secret-api-key-zerops" \
   -H "Content-Type: application/json" \
   -d '{"rrsets": [{"name": "<hostname>.zerops.internal.", "type": "A", "ttl": 300, "changetype": "REPLACE", "records": [{"content": "<IP>", "disabled": false}]}]}' \
-  http://192.168.0.200:8081/api/v1/servers/localhost/zones/zerops.internal.
+  http://192.168.0.9:8081/api/v1/servers/localhost/zones/zerops.internal.
 
-# Listar todos los registros DNS
-curl -H "X-API-Key: super-secret-api-key-zerops" \
-  http://192.168.0.200:8081/api/v1/servers/localhost/zones/zerops.internal. | python3 -m json.tool
+# 1. Consultar la zona completa
+curl -s -H "X-API-Key: super-secret-api-key-zerops" \
+  http://192.168.0.9:8081/api/v1/servers/localhost/zones/zerops.internal.
 
-# Eliminar un registro DNS
+# 2. Consultar un registro en formato legible
+curl -s -H "X-API-Key: super-secret-api-key-zerops" \
+  http://192.168.0.9:8081/api/v1/servers/localhost/zones/zerops.internal. | python3 -m json.tool
+
+# 3. Eliminar manualmente el registro de la cola si está bloqueado
 curl -X PATCH -H "X-API-Key: super-secret-api-key-zerops" \
   -H "Content-Type: application/json" \
-  -d '{"rrsets": [{"name": "<hostname>.zerops.internal.", "type": "A", "changetype": "DELETE"}]}' \
-  http://192.168.0.200:8081/api/v1/servers/localhost/zones/zerops.internal.
+  -d '{"rrsets": [{"name": "queue.zerops.internal.", "type": "A", "changetype": "DELETE"}]}' \
+  http://192.168.0.9:8081/api/v1/servers/localhost/zones/zerops.internal.
 ```
 
 ---
@@ -501,7 +534,7 @@ curl -X PATCH -H "X-API-Key: super-secret-api-key-zerops" \
 | ArgoCD | https://argocd.zerops.internal | GitOps — ver estado de deployments |
 | Gitea | https://gitea.zerops.internal | Repositorio — código e IaC |
 | Step-CA | https://step-ca.zerops.internal:9000 | PKI — emisión de certificados |
-| PowerDNS API | http://192.168.0.200:8081 | DNS — gestión de registros |
+| PowerDNS API | http://192.168.0.9:8081 | DNS — gestión de registros |
 
 ---
 

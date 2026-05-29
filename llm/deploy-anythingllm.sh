@@ -12,7 +12,7 @@ KUBECONFIG_MGMT="/Users/jonnhy/Documents/airgapOps/thinkpad-kubeconfig.yaml"
 
 API_KEY="${1:-}"
 DOMAIN="llm.zerops.internal"
-PI_IP="192.168.0.200"
+PI_IP="192.168.0.9"
 THINKPAD_IP="192.168.0.10"
 PDNS_API_KEY="super-secret-api-key-zerops"
 

@@ -11,13 +11,13 @@ Este playbook aprovisiona la capa fundacional de red (DNS Split-Horizon) y la In
 |---|---|
 | **Hardware** | Nodo dedicado (ej. Raspberry Pi 4/5) aislado del clúster principal |
 | **OS** | Ubuntu Server Minimal 22.04 LTS / 24.04 LTS — Arquitectura ARM64 |
-| **Red** | IP local estática asignada (placeholder: `192.168.0.200`) |
+| **Red** | IP local estática asignada (IP real: `192.168.0.9`) |
 | **Dominio Base** | `zerops.internal` |
 
 ### Hardware de referencia en este IDP
 | Nodo | IP | Rol |
 |---|---|---|
-| Raspberry Pi 4 | `192.168.0.200` | DNS + PKI (PB-00) |
+| Raspberry Pi 4 | `192.168.0.9`  | DNS + PKI (PB-00) |
 | ThinkPad | `192.168.0.10` | Management Cluster (PB-01) |
 | Ryzen | `192.168.0.13` | Compute Node (PB-02) |
 
@@ -123,7 +123,7 @@ loglevel=4
 
 **2. Crear `docker-compose.yml`:**
 
-> ⚠️ Reemplazar `[TU_IP_RASPBERRY]` por la IP real del nodo (ej: `192.168.0.200`)
+> ⚠️ Reemplazar `[TU_IP_RASPBERRY]` por la IP real del nodo (ej: `192.168.0.9`)
 
 ```yaml
 version: '3.8'

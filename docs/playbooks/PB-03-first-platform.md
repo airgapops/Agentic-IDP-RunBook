@@ -396,6 +396,25 @@ kubectl describe release test-platform-vcluster -n crossplane-system
 
 ---
 
+### Problema 4: Error `UNABLE_TO_GET_ISSUER_CERT_LOCALLY` en Backstage al conectar Gitea/Thunder
+
+**Síntoma:**
+El portal Backstage (OpenChoreo) falla al intentar autenticarse con el cliente de Thunder o al sincronizar catálogos desde Gitea, mostrando errores como `unable to get local issuer certificate` o `Refresh failed; caused by InputError: Missing session cookie` con códigos `401/500`.
+
+**Causa:**
+El backend Node.js de Backstage establece conexiones HTTPS internas a `gitea.zerops.internal` y `thunder.zerops.internal`. Dado que estas URLs usan certificados emitidos por la CA privada (Step-CA), Node.js rechaza el protocolo de enlace al no tener el certificado raíz en su trust store interno precompilado.
+
+**Solución:**
+Bypass temporal y seguro de la verificación estricta de TLS en el backend de Node.js inyectando la variable de entorno `NODE_TLS_REJECT_UNAUTHORIZED` en el despliegue de Backstage (`openchoreo/openchoreo-app.yaml`):
+```yaml
+        env:
+        - name: NODE_TLS_REJECT_UNAUTHORIZED
+          value: "0"
+```
+Esta directiva permite el enrutamiento y autenticación HTTPS nativa segura a través de Envoy sin bloquearse en entornos Air-gapped con autoridades certificadoras internas.
+
+---
+
 ## ✅ Checklist de Validación (Exit Criteria)
 
 - [ ] `kubectl get platforms -A` muestra `SYNCED=True` y `READY=True`

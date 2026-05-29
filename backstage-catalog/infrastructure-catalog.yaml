@@ -124,13 +124,13 @@ metadata:
     - powerdns
     - tier-0
   annotations:
-    zerops.internal/node-ip: "192.168.0.200"
+    zerops.internal/node-ip: "192.168.0.9"
     zerops.internal/role: network-identity
     zerops.internal/dns-zone: zerops.internal
     zerops.internal/ca-url: https://step-ca.zerops.internal:9000
     backstage.io/techdocs-ref: dir:docs/playbooks/PB-00-corporate-network-identity.md
   links:
-    - url: http://192.168.0.200:8081
+    - url: http://192.168.0.9:8081
       title: PowerDNS API
       icon: api
 spec:
