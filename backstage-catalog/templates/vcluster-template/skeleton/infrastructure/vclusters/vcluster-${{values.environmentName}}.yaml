@@ -1,0 +1,12 @@
+apiVersion: zerops.internal/v1alpha1
+kind: Platform
+metadata:
+  name: ${{ values.environmentName }}
+  namespace: default
+  labels:
+    team: developer-team
+    environment: development
+spec:
+  size: ${{ values.size }}
+  # El namespace en el clúster hijo Ryzen donde se creará el vcluster
+  namespace: ${{ values.environmentName }}-ns

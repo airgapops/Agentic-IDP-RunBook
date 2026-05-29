@@ -91,7 +91,7 @@ data:
         - type: url
           target: https://gitea.zerops.internal/jadamson/airgap-ops/raw/branch/main/backstage-catalog/infrastructure-catalog.yaml
           rules:
-            - allow: [Component, System, Resource, API, Location]
+            - allow: [Component, System, Resource, API, Location, Template]
 ---
 apiVersion: v1
 kind: Service

@@ -284,3 +284,15 @@ spec:
                   spec:
                     size: small
                     namespace: my-team-apps
+---
+# --------------------------------------------------------------------------
+# LOCATION: Registra el Golden Path Software Template en Backstage
+# --------------------------------------------------------------------------
+apiVersion: backstage.io/v1alpha1
+kind: Location
+metadata:
+  name: vcluster-platform-template-location
+  title: Golden Path Templates
+spec:
+  type: url
+  target: https://gitea.zerops.internal/jadamson/airgap-ops/raw/branch/main/backstage-catalog/templates/vcluster-template/template.yaml
