@@ -92,7 +92,7 @@ data:
           target: https://gitea.zerops.internal/jadamson/airgap-ops/raw/branch/main/backstage-catalog/infrastructure-catalog.yaml
           rules:
             - allow: [Component, System, Resource, API, Location]
-
+---
 apiVersion: v1
 kind: Service
 metadata:
@@ -104,23 +104,3 @@ spec:
   ports:
   - port: 80
     targetPort: 7000
----
-apiVersion: gateway.networking.k8s.io/v1
-kind: HTTPRoute
-metadata:
-  name: openchoreo-route
-  namespace: openchoreo-system
-spec:
-  parentRefs:
-    - name: zerops-gateway
-      namespace: default
-  hostnames:
-    - "choreo.zerops.internal"
-  rules:
-    - matches:
-        - path:
-            type: PathPrefix
-            value: /
-      backendRefs:
-        - name: openchoreo-service
-          port: 80
