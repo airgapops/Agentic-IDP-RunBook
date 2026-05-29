@@ -1,7 +1,12 @@
 ---
 # Traefik — IngressController para el host K3s del Ryzen
 # Obtiene IP 192.168.0.240 via MetalLB
-# K3s tiene Traefik deshabilitado via config.yaml (gestionado aquí via Crossplane)
+# FIXES APLICADOS (2026-05-26):
+# 1. Sin redirect global HTTP→HTTPS (rompe ACME HTTP-01 challenge)
+# 2. hostNetwork: true — Traefik corre en el network namespace del HOST
+#    para alcanzar pod IPs directamente (kube-router deja chains iptables
+#    obsoletas que bloquean pod-to-pod entre Traefik y los solver pods)
+# 3. dnsPolicy: ClusterFirstWithHostNet — DNS cluster sigue funcionando
 apiVersion: helm.crossplane.io/v1beta1
 kind: Release
 metadata:
@@ -23,15 +28,12 @@ spec:
       service:
         type: LoadBalancer
 
-      # Puertos HTTP y HTTPS
       ports:
         web:
           port: 8000
           expose: true
           exposedPort: 80
-          # Redirigir HTTP → HTTPS
-          redirectTo:
-            port: websecure
+          # Sin redirectTo: cert-manager ACME HTTP-01 necesita HTTP puro
         websecure:
           port: 8443
           expose: true
@@ -39,10 +41,15 @@ spec:
           tls:
             enabled: true
 
-      # IngressClass por defecto
       ingressClass:
         enabled: true
         isDefaultClass: true
+
+      deployment:
+        # hostNetwork permite a Traefik alcanzar pod IPs directamente
+        # (fix para kube-router iptables chains obsoletas post-reboot)
+        hostNetwork: true
+        dnsPolicy: ClusterFirstWithHostNet
 
       # Permitir Ingress y TLS secrets de todos los namespaces
       # (vclusters sincronizan Ingress al namespace del host)
