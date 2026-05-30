@@ -1,0 +1,14 @@
+# =============================================================================
+# OpenChoreo Environment — Development
+# =============================================================================
+apiVersion: openchoreo.dev/v1alpha1
+kind: Environment
+metadata:
+  name: development
+spec:
+  project: zerops-platform
+  displayName: Development
+  description: Development environment for testing and iteration
+  dataPlane: default
+  promotion:
+    isProduction: false

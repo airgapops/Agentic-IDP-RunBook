@@ -1,0 +1,27 @@
+# =============================================================================
+# OpenChoreo Component — RabbitMQ Message Broker
+# AMQP message broker with management UI
+# =============================================================================
+apiVersion: openchoreo.dev/v1alpha1
+kind: Component
+metadata:
+  name: rabbitmq
+spec:
+  project: zerops-platform
+  displayName: RabbitMQ Message Broker
+  description: >
+    RabbitMQ 3.13 message broker with management web UI.
+    Provides async messaging (AMQP) for microservice communication.
+  type: service
+  source:
+    type: from-image
+    image: rabbitmq:3.13-management-alpine
+  ports:
+    - name: amqp
+      port: 5672
+      targetPort: 5672
+      protocol: TCP
+    - name: management
+      port: 15672
+      targetPort: 15672
+      protocol: TCP

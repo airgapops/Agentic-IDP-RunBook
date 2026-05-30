@@ -1,6 +1,6 @@
 # 🏗️ Zerops Sovereign IDP — airgapOps
 
-> Air-gapped Internal Developer Platform running on bare-metal K3s clusters with ArgoCD GitOps, OpenChoreo, and vcluster isolation.
+> Air-gapped Internal Developer Platform powered by **OpenChoreo** on bare-metal K3s clusters with Flux CD GitOps, Hermes AI, and vcluster isolation.
 
 ## 🌐 Architecture
 
@@ -9,96 +9,109 @@
 │  🍓 Raspberry Pi    │     │  💻 ThinkPad (Mgmt)      │     │  🖥️ Ryzen (Compute)      │
 │  192.168.0.9        │     │  192.168.0.10             │     │  192.168.0.13             │
 │                     │     │                           │     │                           │
-│  ├── PowerDNS       │────▶│  ├── ArgoCD (GitOps)      │────▶│  ├── MetalLB              │
-│  │   zerops.internal│     │  ├── Gitea (Git server)   │     │  ├── Traefik (Ingress)    │
-│  └── Step-CA (PKI)  │     │  ├── OpenChoreo (Portal)  │     │  ├── cert-manager         │
-│      ACME TLS       │     │  ├── ThunderID (OIDC)     │     │  ├── vcluster-mock        │
-│                     │     │  ├── Envoy Gateway        │     │  ├── vcluster-postgres    │
-│                     │     │  └── cert-manager          │     │  └── vcluster-rabbitmq    │
+│  ├── PowerDNS       │────▶│  OpenChoreo Control Plane │────▶│  OpenChoreo Data Plane    │
+│  │   zerops.internal│     │  ├── Backstage (Portal)   │     │  ├── Cluster Agent        │
+│  └── Step-CA (PKI)  │     │  ├── ThunderID (OIDC)     │     │  ├── Cilium (networking)  │
+│      ACME TLS       │     │  ├── Flux CD (GitOps)     │     │  ├── Gateway (Envoy)      │
+│                     │     │  ├── OpenChoreo API        │     │  └── Workloads            │
+│                     │     │  ├── Argo Workflows (CI)   │     │      ├── mock-api         │
+│                     │     │  ├── MCP Servers (AI)      │     │      ├── postgres         │
+│                     │     │  └── Gateway API (Envoy)   │     │      └── rabbitmq         │
 └─────────────────────┘     └──────────────────────────┘     └──────────────────────────┘
-     Tier-0 (DNS/PKI)           Control Plane                     Data Plane (Compute)
+     Tier-0 (DNS/PKI)           Control Plane                     Data Plane
 ```
 
-## 🔄 GitOps Workflow
+## 🔄 Platform Workflow
 
 ```
-Developer ──▶ OpenChoreo UI ──▶ Golden Path Template ──▶ Gitea (push YAML)
-                                                              │
-                                                              ▼
-                                                         ArgoCD (detect)
-                                                              │
-                                                              ▼
-                                                     Ryzen Cluster (deploy)
-                                                         └── vcluster ready
+Developer ──▶ OpenChoreo Portal ──▶ Create Component ──▶ Flux CD (sync)
+     │              │                                        │
+     │              ▼                                        ▼
+     │         Hermes AI (MCP) ──▶ Natural Language Ops    Data Plane
+     │                                                    (auto-deploy)
+     ▼
+  Git Push ──▶ Argo Workflows (CI) ──▶ Build ──▶ Release ──▶ Deploy
 ```
 
-1. **OpenChoreo** provides a self-service catalog with Golden Path templates
-2. Templates generate **ArgoCD Application** manifests and push to **Gitea**
-3. **ArgoCD** detects changes and deploys directly to the **Ryzen** compute cluster
-4. **vclusters** (Loft) run as isolated Kubernetes environments on Ryzen
+1. **OpenChoreo Portal** provides self-service catalog and Golden Path templates
+2. **Flux CD** (built-in) handles GitOps reconciliation automatically
+3. **Argo Workflows** runs CI pipelines and builds
+4. **Hermes AI** connects via MCP for natural language platform operations
+5. **Data Plane** runs workloads with Cilium networking and Envoy gateway
 
 ## 📁 Repository Structure
 
 ```
 airgapOps/
-├── argocd/                    # App-of-Apps pattern
-│   ├── root-app.yaml          # Root application (syncs this directory)
-│   ├── gateway.yaml           # → gateway/
-│   ├── infrastructure.yaml    # → infrastructure/ryzen/
-│   ├── vclusters-app.yaml     # → manifests/vclusters/
-│   ├── tenant-apps.yaml       # → manifests/tenants/
-│   ├── ryzen-metallb.yaml     # Helm → MetalLB on Ryzen
-│   ├── ryzen-traefik.yaml     # Helm → Traefik on Ryzen
-│   └── ryzen-cert-manager.yaml# Helm → cert-manager on Ryzen
-├── gateway/                   # Management cluster networking
-│   ├── zerops-gateway.yaml    # Gateway API resource
-│   └── external-dns.yaml     # ExternalDNS → PowerDNS
-├── infrastructure/ryzen/      # Post-install configs for Ryzen
-│   ├── metallb-config.yaml    # IP address pool
-│   ├── cert-manager-config.yaml # Step-CA ClusterIssuer
-│   └── coredns-zerops-stub.yaml # DNS stub zone
-├── manifests/
-│   ├── vclusters/             # ArgoCD Apps → Loft vcluster Helm charts
-│   └── tenants/               # ArgoCD Apps → workload deployments
-├── apps/                      # Workload manifests (K8s Deployments/Services/Ingress)
-│   ├── mock-api/
-│   ├── postgres/
-│   └── rabbitmq/
-├── backstage-catalog/         # OpenChoreo catalog entities & templates
-│   ├── infrastructure-catalog.yaml
-│   └── templates/vcluster-template/
-├── docs/                      # Documentation
-│   ├── playbooks/             # PB-00 through PB-06
-│   ├── hermes-skills/         # AI assistant skills
-│   └── bootstrap/             # One-time setup scripts (reference)
-└── llm/                       # Ollama/AnythingLLM GPU stack (manual)
+├── openchoreo/                    # Helm values for OpenChoreo installation
+│   ├── values-cp.yaml             # Control Plane configuration
+│   └── values-dp.yaml             # Data Plane configuration
+├── platform/                      # OpenChoreo CRD declarations
+│   ├── project.yaml               # Project definition
+│   ├── environments/              # Environment definitions
+│   │   ├── development.yaml
+│   │   └── production.yaml
+│   └── components/                # Component definitions
+│       ├── mock-api.yaml          # HTTP echo service
+│       ├── postgres.yaml          # PostgreSQL database
+│       └── rabbitmq.yaml          # RabbitMQ message broker
+├── docs/                          # Documentation
+│   ├── playbooks/                 # PB-00 through PB-06
+│   ├── hermes-skills/             # AI assistant skills
+│   ├── bootstrap/                 # One-time setup scripts (reference)
+│   ├── architecture-cookbook.md
+│   └── multi-cluster-architecture.md
+├── .gitignore
+└── README.md
 ```
 
 ## 🔗 Key URLs
 
 | Service | URL |
 |---------|-----|
-| ArgoCD | `https://argocd.zerops.internal` |
-| OpenChoreo (Backstage) | `https://choreo.zerops.internal` |
-| Gitea | `https://gitea.zerops.internal` |
+| OpenChoreo Portal | `https://choreo.zerops.internal` |
+| OpenChoreo API | `https://api.choreo.zerops.internal` |
 | ThunderID (OIDC) | `https://thunder.zerops.internal` |
-| Mock API | `https://api.zerops.internal` |
-| pgAdmin | `https://db.zerops.internal` |
-| RabbitMQ Management | `https://queue.zerops.internal` |
+| Gitea | `https://gitea.zerops.internal` |
 
-## 🚀 Quick Start
+## 🚀 Installation
 
 ### Prerequisites
-- Three nodes on the same LAN (192.168.0.x)
-- K3s installed on ThinkPad (management) and Ryzen (compute)
-- PowerDNS + Step-CA running on Raspberry Pi
+- K3s cluster on ThinkPad (management) and Ryzen (compute)
+- PowerDNS + Step-CA on Raspberry Pi
+- Helm v3.12+ and kubectl v1.32+
 
-### Bootstrap Sequence
-1. **Raspberry Pi** — DNS + PKI (see [PB-00](docs/playbooks/PB-00-corporate-network-identity.md))
-2. **ThinkPad** — K3s + ArgoCD + Gitea (see [PB-01](docs/playbooks/PB-01-management-cluster.md))
-3. **Ryzen** — K3s compute node (see [PB-02](docs/playbooks/PB-02-compute-cluster.md))
-4. **Apply root-app** — `kubectl apply -f argocd/root-app.yaml`
-5. **OpenChoreo** — Install via Helm (see [bootstrap scripts](docs/bootstrap/))
+### Install OpenChoreo
+
+```bash
+# 1. Install Gateway API CRDs
+kubectl apply --server-side -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.2.0/standard-install.yaml
+
+# 2. Install Control Plane
+helm upgrade --install openchoreo-control-plane \
+  oci://ghcr.io/openchoreo/helm-charts/openchoreo-control-plane \
+  --version 1.1.0 \
+  --namespace openchoreo-control-plane --create-namespace \
+  --values openchoreo/values-cp.yaml --wait --timeout 600s
+
+# 3. Install Data Plane
+helm upgrade --install openchoreo-data-plane \
+  oci://ghcr.io/openchoreo/helm-charts/openchoreo-data-plane \
+  --version 1.1.0 \
+  --namespace openchoreo-data-plane --create-namespace \
+  --values openchoreo/values-dp.yaml --wait --timeout 300s
+
+# 4. Apply Platform Resources
+kubectl apply -f platform/
+```
+
+## 🤖 AI Integration (Hermes + MCP)
+
+OpenChoreo exposes MCP servers for AI-driven operations:
+- **Control Plane MCP**: Resource management (projects, components, deployments)
+- **Observability MCP**: Logs, metrics, traces, incident analysis
+
+Configure Hermes to connect via MCP for natural language platform ops.
 
 ## 📚 Documentation
 
@@ -109,13 +122,11 @@ airgapOps/
 - [PB-04: Developer Workflow](docs/playbooks/PB-04-developer-workflow.md)
 - [PB-05: Firewall & Hardening](docs/playbooks/PB-05-firewall-and-hardening.md)
 - [PB-06: GPU LLM Stack](docs/playbooks/PB-06-gpu-llm-stack.md)
-- [Architecture Cookbook](docs/architecture-cookbook.md)
-- [Multi-Cluster Architecture](docs/multi-cluster-architecture.md)
 
 ## 🛡️ Security
 
-- All internal traffic uses **mTLS** via Step-CA ACME certificates
-- **ThunderID** provides OIDC authentication for OpenChoreo
-- Secrets managed via **OpenBao** + External Secrets Operator
-- Air-gapped: no external internet dependencies at runtime
-- CIS Benchmark hardening documented in [PB-05](docs/playbooks/PB-05-firewall-and-hardening.md)
+- All traffic uses **mTLS** via Step-CA ACME
+- **ThunderID** provides OIDC (built-in to OpenChoreo)
+- Secrets via **OpenBao** + External Secrets Operator
+- Air-gapped: zero external internet dependencies
+- CIS Benchmark hardening in [PB-05](docs/playbooks/PB-05-firewall-and-hardening.md)

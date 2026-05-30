@@ -1,0 +1,14 @@
+# =============================================================================
+# OpenChoreo Environment — Production
+# =============================================================================
+apiVersion: openchoreo.dev/v1alpha1
+kind: Environment
+metadata:
+  name: production
+spec:
+  project: zerops-platform
+  displayName: Production
+  description: Production environment for stable workloads
+  dataPlane: default
+  promotion:
+    isProduction: true

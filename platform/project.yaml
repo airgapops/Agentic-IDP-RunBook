@@ -1,0 +1,13 @@
+# =============================================================================
+# OpenChoreo Project — Zerops Sovereign IDP
+# =============================================================================
+apiVersion: openchoreo.dev/v1alpha1
+kind: Project
+metadata:
+  name: zerops-platform
+spec:
+  displayName: Zerops Sovereign IDP
+  description: >
+    Internal Developer Platform air-gapped multi-cluster.
+    Manages isolated development environments, databases,
+    message brokers, and LLM workloads on bare-metal K3s.

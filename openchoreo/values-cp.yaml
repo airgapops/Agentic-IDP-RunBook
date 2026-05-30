@@ -1,0 +1,41 @@
+# =============================================================================
+# OpenChoreo Control Plane — Helm Values for Zerops Sovereign IDP
+# =============================================================================
+# Install with:
+#   helm upgrade --install openchoreo-control-plane \
+#     oci://ghcr.io/openchoreo/helm-charts/openchoreo-control-plane \
+#     --version 1.1.0 \
+#     --namespace openchoreo-control-plane \
+#     --create-namespace \
+#     --values openchoreo/values-cp.yaml \
+#     --wait --timeout 600s
+
+# --- Backstage (Developer Portal) ---
+backstage:
+  baseUrl: "https://choreo.zerops.internal"
+  secretName: backstage-secrets
+  http:
+    hostnames:
+    - choreo.zerops.internal
+
+# --- OpenChoreo API ---
+openchoreoApi:
+  http:
+    hostnames:
+    - api.choreo.zerops.internal
+  config:
+    server:
+      publicUrl: "https://api.choreo.zerops.internal"
+
+# --- ThunderID (OIDC Identity Provider) ---
+thunder:
+  http:
+    hostnames:
+    - thunder.zerops.internal
+
+# --- Gateway ---
+gateway:
+  httpPort: 80
+  httpsPort: 443
+  tls:
+    enabled: true

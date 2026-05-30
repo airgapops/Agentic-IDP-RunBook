@@ -1,0 +1,23 @@
+# =============================================================================
+# OpenChoreo Component — Mock API
+# HTTP echo service for testing platform connectivity
+# =============================================================================
+apiVersion: openchoreo.dev/v1alpha1
+kind: Component
+metadata:
+  name: mock-api
+spec:
+  project: zerops-platform
+  displayName: Mock API
+  description: >
+    Lightweight HTTP echo service that returns request metadata as JSON.
+    Used for testing platform connectivity and routing.
+  type: service
+  source:
+    type: from-image
+    image: mendhak/http-https-echo:33
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+      protocol: TCP
