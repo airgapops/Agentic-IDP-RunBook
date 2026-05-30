@@ -31,6 +31,7 @@ metadata:
   namespace: default
 spec:
   owner:
+    projectName: default
     componentName: mock-api
   container:
     image: mendhak/http-https-echo:33

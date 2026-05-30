@@ -27,6 +27,7 @@ metadata:
   namespace: default
 spec:
   owner:
+    projectName: default
     componentName: rabbitmq
   container:
     image: rabbitmq:3.13-management-alpine

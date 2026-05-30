@@ -27,6 +27,7 @@ metadata:
   namespace: default
 spec:
   owner:
+    projectName: default
     componentName: postgres
   container:
     image: postgres:16-alpine
