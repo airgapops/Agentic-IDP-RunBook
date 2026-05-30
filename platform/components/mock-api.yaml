@@ -2,22 +2,36 @@
 # OpenChoreo Component — Mock API
 # HTTP echo service for testing platform connectivity
 # =============================================================================
+# Note: Components require a Workload to define runtime (image, ports).
+# Components are bound to a project via spec.owner.projectName
+# and reference a ClusterComponentType for the deployment pattern.
 apiVersion: openchoreo.dev/v1alpha1
 kind: Component
 metadata:
   name: mock-api
+  namespace: default
+  annotations:
+    openchoreo.dev/display-name: "Mock API"
+    openchoreo.dev/description: >-
+      Lightweight HTTP echo service that returns request metadata as JSON.
+      Used for testing platform connectivity and routing.
+  labels:
+    openchoreo.dev/name: mock-api
 spec:
-  project: zerops-platform
-  displayName: Mock API
-  description: >
-    Lightweight HTTP echo service that returns request metadata as JSON.
-    Used for testing platform connectivity and routing.
-  type: service
-  source:
-    type: from-image
+  owner:
+    projectName: default
+---
+# Workload defines the runtime specification
+apiVersion: openchoreo.dev/v1alpha1
+kind: Workload
+metadata:
+  name: mock-api
+  namespace: default
+spec:
+  owner:
+    componentName: mock-api
+  container:
     image: mendhak/http-https-echo:33
-  ports:
-    - name: http
-      port: 8080
-      targetPort: 8080
-      protocol: TCP
+    ports:
+      - name: http
+        port: 8080

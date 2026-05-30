@@ -1,23 +1,32 @@
 # =============================================================================
 # OpenChoreo Component — PostgreSQL Database
-# Relational database with pgAdmin management UI
 # =============================================================================
 apiVersion: openchoreo.dev/v1alpha1
 kind: Component
 metadata:
   name: postgres
+  namespace: default
+  annotations:
+    openchoreo.dev/display-name: "PostgreSQL Database"
+    openchoreo.dev/description: >-
+      PostgreSQL 16 database. Provides persistent relational
+      data storage for platform services.
+  labels:
+    openchoreo.dev/name: postgres
 spec:
-  project: zerops-platform
-  displayName: PostgreSQL Database
-  description: >
-    PostgreSQL 16 database with pgAdmin 4 web UI.
-    Provides persistent relational data storage for platform services.
-  type: service
-  source:
-    type: from-image
+  owner:
+    projectName: default
+---
+apiVersion: openchoreo.dev/v1alpha1
+kind: Workload
+metadata:
+  name: postgres
+  namespace: default
+spec:
+  owner:
+    componentName: postgres
+  container:
     image: postgres:16-alpine
-  ports:
-    - name: postgres
-      port: 5432
-      targetPort: 5432
-      protocol: TCP
+    ports:
+      - name: postgres
+        port: 5432

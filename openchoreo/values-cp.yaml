@@ -27,12 +27,6 @@ openchoreoApi:
     server:
       publicUrl: "https://api.choreo.zerops.internal"
 
-# --- ThunderID (OIDC Identity Provider) ---
-thunder:
-  http:
-    hostnames:
-    - thunder.zerops.internal
-
 # --- Gateway ---
 gateway:
   httpPort: 80

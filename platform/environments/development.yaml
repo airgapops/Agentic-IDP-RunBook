@@ -1,14 +1,20 @@
 # =============================================================================
 # OpenChoreo Environment — Development
 # =============================================================================
+# Note: OpenChoreo uses annotations for display metadata and
+# spec.dataPlaneRef instead of spec.dataPlane.
+# This environment already exists in the cluster.
 apiVersion: openchoreo.dev/v1alpha1
 kind: Environment
 metadata:
   name: development
+  annotations:
+    openchoreo.dev/display-name: "Development"
+    openchoreo.dev/description: "Development environment for testing and iteration"
+  labels:
+    openchoreo.dev/name: development
 spec:
-  project: zerops-platform
-  displayName: Development
-  description: Development environment for testing and iteration
-  dataPlane: default
-  promotion:
-    isProduction: false
+  dataPlaneRef:
+    kind: ClusterDataPlane
+    name: default
+  isProduction: false

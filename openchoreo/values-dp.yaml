@@ -10,7 +10,9 @@
 #     --values openchoreo/values-dp.yaml \
 #     --wait --timeout 300s
 
-# --- Gateway (use alternate ports to avoid conflicts in single-cluster) ---
+# --- Gateway (alternate ports to avoid conflict in single-cluster) ---
 gateway:
   httpPort: 19080
   httpsPort: 19443
+  tls:
+    hostname: openchoreoapis.zerops.internal
