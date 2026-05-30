@@ -1,4 +1,0 @@
-argoCD
-Usuario: admin
-Contraseña: uU285kuivWXq95qD
-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

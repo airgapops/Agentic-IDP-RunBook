@@ -1,0 +1,62 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: choreo-https-route
+  namespace: openchoreo-control-plane
+spec:
+  parentRefs:
+    - name: zerops-gateway
+      namespace: default
+      sectionName: https-choreo
+  hostnames:
+    - choreo.zerops.internal
+  rules:
+    - backendRefs:
+        - name: backstage
+          port: 7007
+      matches:
+        - path:
+            type: PathPrefix
+            value: /
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: api-choreo-https-route
+  namespace: openchoreo-control-plane
+spec:
+  parentRefs:
+    - name: zerops-gateway
+      namespace: default
+      sectionName: https-api-choreo
+  hostnames:
+    - api.choreo.zerops.internal
+  rules:
+    - backendRefs:
+        - name: openchoreo-api
+          port: 8080
+      matches:
+        - path:
+            type: PathPrefix
+            value: /
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: thunder-https-route
+  namespace: thunder
+spec:
+  parentRefs:
+    - name: zerops-gateway
+      namespace: default
+      sectionName: https-thunder
+  hostnames:
+    - thunder.zerops.internal
+  rules:
+    - backendRefs:
+        - name: thunder-service
+          port: 8090
+      matches:
+        - path:
+            type: PathPrefix
+            value: /

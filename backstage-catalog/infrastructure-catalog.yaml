@@ -2,7 +2,7 @@
 # =============================================================================
 # ZEROPS SOVEREIGN IDP — Backstage Catalog Entities
 # Sistema de Infraestructura como Producto (InfraAsProduct)
-# Descubierto automáticamente desde Gitea por Backstage App-Config
+# Descubierto automáticamente desde Gitea por OpenChoreo/Backstage
 # =============================================================================
 
 # --------------------------------------------------------------------------
@@ -14,15 +14,17 @@ metadata:
   name: zerops-sovereign-idp
   title: Zerops Sovereign IDP
   description: >
-    Internal Developer Platform air-gapped de múltiples clusters.
+    Internal Developer Platform air-gapped multi-cluster.
     Aprovisiona entornos de desarrollo aislados (vcluster) con bases de datos,
-    colas de mensajes y modelos LLM, todo gestionado vía Crossplane + GitOps.
+    colas de mensajes y modelos LLM. Todo gestionado vía ArgoCD GitOps puro
+    con App-of-Apps pattern sobre clusters K3s bare-metal.
   tags:
     - infrastructure
     - platform-engineering
     - air-gapped
-    - crossplane
+    - argocd
     - gitops
+    - vcluster
   annotations:
     backstage.io/techdocs-ref: dir:.
     github.com/project-slug: jadamson/airgap-ops
@@ -32,7 +34,7 @@ spec:
 ---
 # --------------------------------------------------------------------------
 # RESOURCE: Management Cluster (ThinkPad)
-# El cerebro del IDP — corre Crossplane, ArgoCD, cert-manager, Gateway
+# El cerebro del IDP — corre ArgoCD, cert-manager, Gateway API, OpenChoreo
 # --------------------------------------------------------------------------
 apiVersion: backstage.io/v1alpha1
 kind: Resource
@@ -41,14 +43,15 @@ metadata:
   title: ThinkPad — Management Cluster
   description: >
     Clúster K3s principal que actúa como Control Plane del IDP.
-    Corre: Crossplane (aprovisionamiento), ArgoCD (GitOps), cert-manager (TLS),
-    Envoy Gateway (ingress), Backstage (developer portal).
+    Ejecuta: ArgoCD (GitOps), cert-manager (TLS vía Step-CA),
+    Envoy Gateway (ingress Gateway API), OpenChoreo (developer portal),
+    ThunderID (OIDC identity provider).
   tags:
     - kubernetes
     - k3s
     - management-cluster
-    - crossplane
     - argocd
+    - openchoreo
   annotations:
     backstage.io/managed-by-location: url:https://gitea.zerops.internal/jadamson/airgap-ops
     zerops.internal/node-ip: "192.168.0.10"
@@ -59,7 +62,7 @@ metadata:
       title: ArgoCD UI
       icon: dashboard
     - url: https://choreo.zerops.internal
-      title: Developer Portal (Backstage)
+      title: OpenChoreo (Developer Portal)
       icon: dashboard
 spec:
   type: kubernetes-cluster
@@ -79,22 +82,24 @@ metadata:
   name: ryzen-compute-cluster
   title: Ryzen — Compute Cluster
   description: >
-    Nodo de cómputo K3s donde Crossplane aprovisiona vclusters (entornos de
-    desarrollo aislados) vía Helm. Cada Platform CR crea un vcluster aquí.
-    Conectado al Management Cluster vía kubeconfig secret.
+    Nodo de cómputo K3s donde ArgoCD despliega vclusters nativos como
+    ArgoCD Applications apuntando al Helm chart de Loft vcluster.
+    Cada vcluster corre en su propio namespace aislado.
+    Incluye MetalLB, Traefik y cert-manager para networking de workloads.
   tags:
     - kubernetes
     - k3s
     - compute-node
     - vcluster
+    - gpu
   annotations:
     zerops.internal/node-ip: "192.168.0.13"
     zerops.internal/k3s-version: "1.35"
     zerops.internal/role: compute
-    zerops.internal/current-vclusters: "1"
+    zerops.internal/current-vclusters: "3"
   links:
-    - url: https://gitea.zerops.internal/jadamson/airgap-ops/src/branch/main/infrastructure/compositions
-      title: Compositions (Gitea)
+    - url: https://argocd.zerops.internal/applications
+      title: ArgoCD Apps
       icon: code
 spec:
   type: kubernetes-cluster
@@ -140,32 +145,28 @@ spec:
   lifecycle: production
 ---
 # --------------------------------------------------------------------------
-# RESOURCE: Entorno activo — ryzen-dev-platform vcluster
-# Instancia concreta de Platform aprovisionada por Crossplane
+# RESOURCE: vcluster-mock — Entorno de API mock
 # --------------------------------------------------------------------------
 apiVersion: backstage.io/v1alpha1
 kind: Resource
 metadata:
-  name: ryzen-dev-platform
-  title: ryzen-dev-platform (vcluster)
+  name: vcluster-mock
+  title: vcluster-mock (Dev Environment)
   description: >
-    Entorno de desarrollo aislado aprovisionado via Crossplane Platform CR.
-    Es un clúster K3s virtual (vcluster 0.19.5) corriendo en el Ryzen compute node.
-    CIDR: 10.43.0.0/16 (heredado del host). Nodo virtual: localhost.localdomain Ready.
+    Entorno de desarrollo aislado para mock API. Desplegado como ArgoCD
+    Application usando el Helm chart oficial de Loft vcluster v0.15.5.
+    Corre en el namespace vcluster-mock del Ryzen compute cluster.
   tags:
     - vcluster
     - dev-environment
-    - crossplane-managed
-    - k3s
+    - argocd-managed
   annotations:
-    zerops.internal/platform-cr: default/ryzen-dev-platform
-    zerops.internal/namespace: ryzen-dev-apps
-    zerops.internal/vcluster-version: "0.19.5"
-    zerops.internal/k3s-internal-version: "v1.29.0+k3s1"
+    zerops.internal/namespace: vcluster-mock
+    zerops.internal/vcluster-version: "0.15.5"
     zerops.internal/status: Running
   links:
-    - url: https://argocd.zerops.internal/applications/infrastructure
-      title: ArgoCD — Infrastructure App
+    - url: https://argocd.zerops.internal/applications/vcluster-mock
+      title: ArgoCD — vcluster-mock
       icon: dashboard
 spec:
   type: platform-environment
@@ -184,13 +185,14 @@ metadata:
   name: argocd-gitops-engine
   title: ArgoCD — GitOps Engine
   description: >
-    Motor de GitOps. Sincroniza el estado deseado del repositorio Gitea
-    con el estado real del clúster. Gestiona las apps:
-    infrastructure, gateway, openchoreo, root-app.
+    Motor de GitOps con patrón App-of-Apps. Sincroniza el estado deseado
+    del repositorio Gitea con el estado real de ambos clusters (ThinkPad
+    y Ryzen). Gestiona infrastructure, gateway, vclusters y tenant apps.
   tags:
     - argocd
     - gitops
     - continuous-delivery
+    - app-of-apps
   annotations:
     zerops.internal/installed-on: thinkpad-management-cluster
     zerops.internal/namespace: argocd

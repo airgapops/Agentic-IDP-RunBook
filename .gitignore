@@ -1,9 +1,33 @@
+# =============================================================================
+# Zerops Sovereign IDP — .gitignore
+# =============================================================================
+
+# Secrets and credentials (NEVER commit)
+envs.txt
+*.kubeconfig.yaml
+*-kubeconfig.yaml
+*.pem
+secrets/
+
+# OS files
 .DS_Store
-*~
-*.log
-*.tmp
-.idea/
+Thumbs.db
+
+# IDE / Editor
 .vscode/
-llm/*.key
-llm/*.env
-*.secret
+.idea/
+*.swp
+*.swo
+*~
+
+# Terraform (if used in future)
+.terraform/
+*.tfstate
+*.tfstate.backup
+
+# Helm
+charts/
+*.tgz
+
+# Node (if Backstage dev)
+node_modules/
