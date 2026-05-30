@@ -1,0 +1,49 @@
+# =============================================================================
+# Hermes AI Agent — MCP Configuration for OpenChoreo
+# =============================================================================
+# Copy this to ~/.hermes/config.yaml on the ThinkPad (192.168.0.10)
+# where Hermes is running.
+#
+# After updating, restart Hermes: hermes chat
+# Verify with: hermes mcp
+
+# --- Model Configuration ---
+# Hermes uses Ollama on the Ryzen GPU or OpenRouter as fallback
+model:
+  provider: ollama
+  base_url: "http://192.168.0.13:11434"  # Ryzen Ollama (when on)
+  model: "hermes-3-llama-3.1-8b"         # or any available model
+  # Fallback: OpenRouter
+  # provider: openrouter
+  # api_key: "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"
+
+# --- MCP Servers ---
+mcp_servers:
+  # OpenChoreo Control Plane MCP
+  # Provides: list projects, components, environments, trigger deploys
+  openchoreo-control:
+    url: "https://api.choreo.zerops.internal/mcp/control"
+    auth: oauth
+    enabled: true
+
+  # OpenChoreo Observability MCP
+  # Provides: query logs, metrics, traces, incidents
+  openchoreo-observability:
+    url: "https://api.choreo.zerops.internal/mcp/observability"
+    auth: oauth
+    enabled: true
+
+# --- Skills Directory ---
+# Point Hermes to the airgap-ops repo skills
+skills:
+  external_dirs:
+    - /tmp/airgap-ops/docs/hermes-skills
+
+# --- Terminal Backend ---
+terminal:
+  backend: local  # Runs commands directly on the ThinkPad host
+
+# --- Memory ---
+memory:
+  enabled: true
+  persist: true

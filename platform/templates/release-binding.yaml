@@ -1,0 +1,23 @@
+# =============================================================================
+# Template: ReleaseBinding — Deploy a ComponentRelease to an Environment
+# =============================================================================
+# Usage:
+#   1. Replace {component}, {environment}, {release-name} with actual values
+#   2. kubectl apply -f release-binding.yaml
+#
+# Find available releases:
+#   kubectl get componentrelease -l openchoreo.dev/component={component}
+#
+# Naming convention: {component}-{environment}
+apiVersion: openchoreo.dev/v1alpha1
+kind: ReleaseBinding
+metadata:
+  name: "{component}-{environment}"
+  namespace: default
+  annotations:
+    openchoreo.dev/display-name: "{component} → {environment}"
+spec:
+  componentReleaseRef:
+    name: "{release-name}"
+  environmentRef:
+    name: "{environment}"
