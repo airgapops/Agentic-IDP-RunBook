@@ -1,0 +1,54 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ryzen-traefik
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  project: default
+  source:
+    repoURL: https://helm.traefik.io/traefik
+    chart: traefik
+    targetRevision: 26.1.0
+    helm:
+      values: |
+        service:
+          type: LoadBalancer
+        ports:
+          web:
+            port: 8000
+            expose: true
+            exposedPort: 80
+          websecure:
+            port: 8443
+            expose: true
+            exposedPort: 443
+            tls:
+              enabled: true
+        ingressClass:
+          enabled: true
+          isDefaultClass: true
+        deployment:
+          hostNetwork: true
+          dnsPolicy: ClusterFirstWithHostNet
+        providers:
+          kubernetesIngress:
+            enabled: true
+            allowExternalNameServices: false
+            publishedService:
+              enabled: true
+        rbac:
+          enabled: true
+        ingressRoute:
+          dashboard:
+            enabled: false
+  destination:
+    name: ryzen
+    namespace: traefik-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

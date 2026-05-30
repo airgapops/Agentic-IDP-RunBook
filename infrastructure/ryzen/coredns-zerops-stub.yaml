@@ -1,29 +1,12 @@
----
-# CoreDNS stub zone: reenvía zerops.internal a PowerDNS (192.168.0.9)
-# CRÍTICO: Sin esto, cert-manager no puede resolver subdominios .zerops.internal
-# desde dentro de los pods (self-check ACME HTTP-01 falla con "no such host")
-apiVersion: kubernetes.crossplane.io/v1alpha1
-kind: Object
+apiVersion: v1
+kind: ConfigMap
 metadata:
-  name: coredns-zerops-stub
-  namespace: crossplane-system
-  annotations:
-    argocd.argoproj.io/sync-wave: "2"
-spec:
-  providerConfigRef:
-    name: ryzen-compute-cluster
-  forProvider:
-    manifest:
-      apiVersion: v1
-      kind: ConfigMap
-      metadata:
-        name: coredns-custom
-        namespace: kube-system
-      data:
-        # K3s CoreDNS importa /etc/coredns/custom/*.server automáticamente
-        zerops.server: |
-          zerops.internal:53 {
-              errors
-              cache 30
-              forward . 192.168.0.9
-          }
+  name: coredns-custom
+  namespace: kube-system
+data:
+  zerops.server: |
+    zerops.internal:53 {
+        errors
+        cache 30
+        forward . 192.168.0.9
+    }

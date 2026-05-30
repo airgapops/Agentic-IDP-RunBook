@@ -61,4 +61,4 @@ spec:
   output:
     links:
       - title: Ver en Gitea
-        url: https://gitea.zerops.internal/jadamson/airgap-ops/src/branch/main/infrastructure/vclusters/vcluster-${{ parameters.environmentName }}.yaml
+        url: https://gitea.zerops.internal/jadamson/airgap-ops/src/branch/main/manifests/vclusters/vcluster-${{ parameters.environmentName }}.yaml

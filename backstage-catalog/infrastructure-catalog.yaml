@@ -176,41 +176,6 @@ spec:
     - resource:ryzen-compute-cluster
 ---
 # --------------------------------------------------------------------------
-# COMPONENT: Crossplane — Motor de Aprovisionamiento
-# --------------------------------------------------------------------------
-apiVersion: backstage.io/v1alpha1
-kind: Component
-metadata:
-  name: crossplane-control-plane
-  title: Crossplane Control Plane
-  description: >
-    Motor de aprovisionamiento de infraestructura. Gestiona: Platform (vcluster),
-    Database (PostgreSQL), Queue (RabbitMQ), LlmKube (servicios LLM).
-    Compositions definen el "cómo", CRs definen el "qué".
-  tags:
-    - crossplane
-    - infrastructure-as-code
-    - control-plane
-  annotations:
-    backstage.io/managed-by-location: url:https://gitea.zerops.internal/jadamson/airgap-ops/src/branch/main/infrastructure
-    zerops.internal/installed-on: thinkpad-management-cluster
-    zerops.internal/namespace: crossplane-system
-  links:
-    - url: https://gitea.zerops.internal/jadamson/airgap-ops/src/branch/main/infrastructure/compositions
-      title: Compositions
-      icon: code
-    - url: https://gitea.zerops.internal/jadamson/airgap-ops/src/branch/main/infrastructure/xrds
-      title: XRDs (APIs)
-      icon: api
-spec:
-  type: platform-tool
-  owner: platform-team
-  system: zerops-sovereign-idp
-  lifecycle: production
-  dependsOn:
-    - resource:thinkpad-management-cluster
----
-# --------------------------------------------------------------------------
 # COMPONENT: ArgoCD — GitOps Engine
 # --------------------------------------------------------------------------
 apiVersion: backstage.io/v1alpha1
@@ -220,7 +185,7 @@ metadata:
   title: ArgoCD — GitOps Engine
   description: >
     Motor de GitOps. Sincroniza el estado deseado del repositorio Gitea
-    con el estado real del clúster. Gestiona las apps: crossplane,
+    con el estado real del clúster. Gestiona las apps:
     infrastructure, gateway, openchoreo, root-app.
   tags:
     - argocd
@@ -239,51 +204,6 @@ spec:
   owner: platform-team
   system: zerops-sovereign-idp
   lifecycle: production
----
-# --------------------------------------------------------------------------
-# API: Platform CR — API para crear entornos de desarrollo
-# --------------------------------------------------------------------------
-apiVersion: backstage.io/v1alpha1
-kind: API
-metadata:
-  name: platform-cr-api
-  title: Platform CR — Developer Environment API
-  description: >
-    API Kubernetes (CRD) para solicitar un entorno de desarrollo aislado.
-    Un Platform CR aprovisiona automáticamente un vcluster, namespace y
-    conectividad de red en el Ryzen compute node.
-  tags:
-    - kubernetes-crd
-    - self-service
-    - platform-api
-  annotations:
-    backstage.io/managed-by-location: url:https://gitea.zerops.internal/jadamson/airgap-ops/src/branch/main/infrastructure/xrds
-spec:
-  type: openapi
-  lifecycle: production
-  owner: platform-team
-  system: zerops-sovereign-idp
-  definition: |
-    openapi: "3.0.0"
-    info:
-      title: Platform API (Crossplane CRD)
-      version: v1alpha1
-    paths:
-      /apis/zerops.internal/v1alpha1/namespaces/{namespace}/platforms:
-        post:
-          summary: Create a new isolated developer environment (vcluster)
-          requestBody:
-            content:
-              application/json:
-                example:
-                  apiVersion: zerops.internal/v1alpha1
-                  kind: Platform
-                  metadata:
-                    name: my-team-dev
-                    namespace: default
-                  spec:
-                    size: small
-                    namespace: my-team-apps
 ---
 # --------------------------------------------------------------------------
 # LOCATION: Registra el Golden Path Software Template en Backstage

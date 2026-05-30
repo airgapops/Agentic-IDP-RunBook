@@ -1,61 +1,24 @@
----
-# Secret con el CA Root de Step-CA para que cert-manager lo confíe
-# Base64 del cert: https://192.168.0.9:9000/roots.pem
-# Issuer: Zerops Internal Root CA
-apiVersion: kubernetes.crossplane.io/v1alpha1
-kind: Object
+apiVersion: v1
+kind: Secret
 metadata:
-  name: step-ca-root-secret
-  namespace: crossplane-system
-  annotations:
-    argocd.argoproj.io/sync-wave: "3"
-spec:
-  providerConfigRef:
-    name: ryzen-compute-cluster
-  forProvider:
-    manifest:
-      apiVersion: v1
-      kind: Secret
-      metadata:
-        name: step-ca-root
-        namespace: cert-manager
-      type: Opaque
-      data:
-        # Zerops Internal Root CA (válido hasta 2036-05-16)
-        # Generado desde https://192.168.0.9:9000/roots.pem
-        ca.crt: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUIzVENDQVlLZ0F3SUJBZ0lSQUt4TmJTK1QyU0sxM0gzbi9HZU5EUEl3Q2dZSUtvWkl6ajBFQXdJd1RERWcKTUI0R0ExVUVDaE1YV21WeWIzQnpJRWx1ZEdWeWJtRnNJRkp2YjNRZ1EwRXhLREFtQmdOVkJBTVRIMXBsY205dwpjeUJKYm5SbGNtNWhiQ0JTYjI5MElFTkJJRkp2YjNRZ1EwRXdIaGNOTWpZd05URTVNVFUxTWpRMldoY05Nell3Ck5URTJNVFUxTWpRMldqQk1NU0F3SGdZRFZRUUtFeGRhWlhKdmNITWdTVzUwWlhKdVlXd2dVbTl2ZENCRFFURW8KTUNZR0ExVUVBeE1mV21WeWIzQnpJRWx1ZEdWeWJtRnNJRkp2YjNRZ1EwRWdVbTl2ZENCRFFUQlpNQk1HQnlxRwpTTTQ5QWdFR0NDcUdTTTQ5QXdFSEEwSUFCTDJVTStaN1ltM3ljcnFHTHFuVElJQytRc1grSEIwVjQ3MlZ1S0poClVnWGV5b21tNWZKT3dmbVFUUlhpcVR5Nk90U25UVlpwZGJMOXlhQUpLSWZIekJxalJUQkRNQTRHQTFVZER3RUIKL3dRRUF3SUJCakFTQmdOVkhSTUJBZjhFQ0RBR0FRSC9BZ0VCTUIwR0ExVWREZ1FXQkJRUlUwMG0zbEViNXh2ZQoxeFFhUmd3M2J2QXBhREFLQmdncWhrak9QUVFEQWdOSkFEQkdBaUVBZ1ZROXJZemxKMitKYk82SndBaWozL29QCmUraS85Ui9wanhqK29GbzFlZWNDSVFEbUNwYkdkMVE5ZFBZeXZxUjlKbllWaW1tY3haZUVrRmliaGh2T0RvY2YKM0E9PQotLS0tLUVORCBDRVJUSUZJQ0FURS0tLS0tCg==
+  name: step-ca-root
+  namespace: cert-manager
+type: Opaque
+data:
+  ca.crt: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUIzVENDQVlLZ0F3SUJBZ0lSQUt4TmJTK1QyU0sxM0gzbi9HZU5EUEl3Q2dZSUtvWkl6ajBFQXdJd1RERWcKTUI0R0ExVUVDaE1YV21WeWIzQnpJRWx1ZEdWeWJtRnNJRkp2YjNRZ1EwRXhLREFtQmdOVkJBTVRIMXBsY205dwpjeUJKYm5SbGNtNWhiQ0JTYjI5MElFTkJJRkp2YjNRZ1EwRXdIaGNOTWpZd05URTVNVFUxTWpRMldoY05Nell3Ck5URTJNVFUxTWpRMldqQk1NU0F3SGdZRFZRUUtFeGRhWlhKdmNITWdTVzUwWlhKdVlXd2dVbTl2ZENCRFFURW8KTUNZR0ExVUVBeE1mV21WeWIzQnpJRWx1ZEdWeWJtRnNJRkp2YjNRZ1EwRWdVbTl2ZENCRFFUQlpNQk1HQnlxRwpTTTQ5QWdFR0NDcUdTTTQ5QXdFSEEwSUFCTDJVTStaN1ltM3ljcnFHTHFuVElJQytRc1grSEIwVjQ3MlZ1S0poClVnWGV5b21tNWZKT3dmbVFUUlhpcVR5Nk90U25UVlpwZGJMOXlhQUpLSWZIekJxalJUQkRNQTRHQTFVZER3RUIKL3dRRUF3SUJCakFTQmdOVkhSTUJBZjhFQ0RBR0FRSC9BZ0VCTUIwR0ExVWREZ1FXQkJRUlUwMG0zbEViNXh2ZQoxeFFhUmd3M2J2QXBhREFLQmdncWhrak9QUVFEQWdOSkFEQkdBaUVBZ1ZROXJZemxKMitKYk82SndBaWozL29QCmUraS85Ui9wanhqK29GbzFlZWNDSVFEbUNwYkdkMVE5ZFBZeXZxUjlKbllWaW1tY3haZUVrRmliaGh2T0RvY2YKM0E9PQotLS0tLUVORCBDRVJUSUZJQ0FURS0tLS0tCg==
 ---
-# ClusterIssuer para Step-CA via ACME HTTP-01
-# Emite certs para cualquier subdominio *.zerops.internal
-# HTTP-01: Step-CA valida el challenge via HTTP en el dominio
-apiVersion: kubernetes.crossplane.io/v1alpha1
-kind: Object
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
 metadata:
-  name: step-ca-clusterissuer
-  namespace: crossplane-system
-  annotations:
-    argocd.argoproj.io/sync-wave: "3"
+  name: step-ca
 spec:
-  providerConfigRef:
-    name: ryzen-compute-cluster
-  forProvider:
-    manifest:
-      apiVersion: cert-manager.io/v1
-      kind: ClusterIssuer
-      metadata:
-        name: step-ca
-      spec:
-        acme:
-          # Step-CA ACME endpoint
-          server: https://192.168.0.9:9000/acme/acme/directory
-          email: admin@zerops.internal
-          # CA bundle para confiar en el Step-CA TLS (autofirmado)
-          caBundle: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUIzVENDQVlLZ0F3SUJBZ0lSQUt4TmJTK1QyU0sxM0gzbi9HZU5EUEl3Q2dZSUtvWkl6ajBFQXdJd1RERWcKTUI0R0ExVUVDaE1YV21WeWIzQnpJRWx1ZEdWeWJtRnNJRkp2YjNRZ1EwRXhLREFtQmdOVkJBTVRIMXBsY205dwpjeUJKYm5SbGNtNWhiQ0JTYjI5MElFTkJJRkp2YjNRZ1EwRXdIaGNOTWpZd05URTVNVFUxTWpRMldoY05Nell3Ck5URTJNVFUxTWpRMldqQk1NU0F3SGdZRFZRUUtFeGRhWlhKdmNITWdTVzUwWlhKdVlXd2dVbTl2ZENCRFFURW8KTUNZR0ExVUVBeE1mV21WeWIzQnpJRWx1ZEdWeWJtRnNJRkp2YjNRZ1EwRWdVbTl2ZENCRFFUQlpNQk1HQnlxRwpTTTQ5QWdFR0NDcUdTTTQ5QXdFSEEwSUFCTDJVTStaN1ltM3ljcnFHTHFuVElJQytRc1grSEIwVjQ3MlZ1S0poClVnWGV5b21tNWZKT3dmbVFUUlhpcVR5Nk90U25UVlpwZGJMOXlhQUpLSWZIekJxalJUQkRNQTRHQTFVZER3RUIKL3dRRUF3SUJCakFTQmdOVkhSTUJBZjhFQ0RBR0FRSC9BZ0VCTUIwR0ExVWREZ1FXQkJRUlUwMG0zbEViNXh2ZQoxeFFhUmd3M2J2QXBhREFLQmdncWhrak9QUVFEQWdOSkFEQkdBaUVBZ1ZROXJZemxKMitKYk82SndBaWozL29QCmUraS85Ui9wanhqK29GbzFlZWNDSVFEbUNwYkdkMVE5ZFBZeXZxUjlKbllWaW1tY3haZUVrRmliaGh2T0RvY2YKM0E9PQotLS0tLUVORCBDRVJUSUZJQ0FURS0tLS0tCg==
-          # Cuenta ACME (key se genera automáticamente)
-          privateKeySecretRef:
-            name: step-ca-acme-account-key
-          solvers:
-          # HTTP-01 via Traefik IngressClass
-          - http01:
-              ingress:
-                ingressClassName: traefik
+  acme:
+    server: https://192.168.0.9:9000/acme/acme/directory
+    email: admin@zerops.internal
+    caBundle: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUIzVENDQVlLZ0F3SUJBZ0lSQUt4TmJTK1QyU0sxM0gzbi9HZU5EUEl3Q2dZSUtvWkl6ajBFQXdJd1RERWcKTUI0R0ExVUVDaE1YV21WeWIzQnpJRWx1ZEdWeWJtRnNJRkp2YjNRZ1EwRXhLREFtQmdOVkJBTVRIMXBsY205dwpjeUJKYm5SbGNtNWhiQ0JTYjI5MElFTkJJRkp2YjNRZ1EwRXdIaGNOTWpZd05URTVNVFUxTWpRMldoY05Nell3Ck5URTJNVFUxTWpRMldqQk1NU0F3SGdZRFZRUUtFeGRhWlhKdmNITWdTVzUwWlhKdVlXd2dVbTl2ZENCRFFURW8KTUNZR0ExVUVBeE1mV21WeWIzQnpJRWx1ZEdWeWJtRnNJRkp2YjNRZ1EwRWdVbTl2ZENCRFFUQlpNQk1HQnlxRwpTTTQ5QWdFR0NDcUdTTTQ5QXdFSEEwSUFCTDJVTStaN1ltM3ljcnFHTHFuVElJQytRc1grSEIwVjQ3MlZ1S0poClVnWGV5b21tNWZKT3dmbVFUUlhpcVR5Nk90U25UVlpwZGJMOXlhQUpLSWZIekJxalJUQkRNQTRHQTFVZER3RUIKL3dRRUF3SUJCakFTQmdOVkhSTUJBZjhFQ0RBR0FRSC9BZ0VCTUIwR0ExVWREZ1FXQkJRUlUwMG0zbEViNXh2ZQoxeFFhUmd3M2J2QXBhREFLQmdncWhrak9QUVFEQWdOSkFEQkdBaUVBZ1ZROXJZemxKMitKYk82SndBaWozL29QCmUraS85Ui9wanhqK29GbzFlZWNDSVFEbUNwYkdkMVE5ZFBZeXZxUjlKbllWaW1tY3haZUVrRmliaGh2T0RvY2YKM0E9PQotLS0tLUVORCBDRVJUSUZJQ0FURS0tLS0tCg==
+    privateKeySecretRef:
+      name: step-ca-acme-account-key
+    solvers:
+    - http01:
+        ingress:
+          ingressClassName: traefik
