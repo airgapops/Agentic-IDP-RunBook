@@ -2,9 +2,9 @@
 # OpenChoreo Component — Mock API
 # HTTP echo service for testing platform connectivity
 # =============================================================================
-# Note: Components require a Workload to define runtime (image, ports).
-# Components are bound to a project via spec.owner.projectName
-# and reference a ClusterComponentType for the deployment pattern.
+# Available ClusterComponentTypes:
+#   service (deployment), web-application (deployment),
+#   worker (deployment), scheduled-task (cronjob)
 apiVersion: openchoreo.dev/v1alpha1
 kind: Component
 metadata:
@@ -20,8 +20,10 @@ metadata:
 spec:
   owner:
     projectName: default
+  componentType:
+    kind: ClusterComponentType
+    name: deployment/service
 ---
-# Workload defines the runtime specification
 apiVersion: openchoreo.dev/v1alpha1
 kind: Workload
 metadata:
@@ -32,6 +34,3 @@ spec:
     componentName: mock-api
   container:
     image: mendhak/http-https-echo:33
-    ports:
-      - name: http
-        port: 8080

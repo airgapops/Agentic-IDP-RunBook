@@ -16,6 +16,9 @@ metadata:
 spec:
   owner:
     projectName: default
+  componentType:
+    kind: ClusterComponentType
+    name: deployment/service
 ---
 apiVersion: openchoreo.dev/v1alpha1
 kind: Workload
@@ -27,6 +30,3 @@ spec:
     componentName: postgres
   container:
     image: postgres:16-alpine
-    ports:
-      - name: postgres
-        port: 5432

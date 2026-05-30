@@ -16,6 +16,9 @@ metadata:
 spec:
   owner:
     projectName: default
+  componentType:
+    kind: ClusterComponentType
+    name: deployment/service
 ---
 apiVersion: openchoreo.dev/v1alpha1
 kind: Workload
@@ -27,8 +30,3 @@ spec:
     componentName: rabbitmq
   container:
     image: rabbitmq:3.13-management-alpine
-    ports:
-      - name: amqp
-        port: 5672
-      - name: management
-        port: 15672

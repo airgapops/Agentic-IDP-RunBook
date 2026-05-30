@@ -1,17 +1,22 @@
 # =============================================================================
 # OpenChoreo Project — Zerops Sovereign IDP
 # =============================================================================
-# Note: OpenChoreo uses annotations for display metadata, not spec fields.
-# A project named "default" already exists — this file is for reference.
-# To create a new project, change metadata.name.
+# The "default" project was auto-created during OpenChoreo installation.
+# This file documents its configuration for GitOps reference.
 apiVersion: openchoreo.dev/v1alpha1
 kind: Project
 metadata:
   name: default
+  namespace: default
   annotations:
     openchoreo.dev/display-name: "Zerops Sovereign IDP"
     openchoreo.dev/description: >-
       Internal Developer Platform air-gapped multi-cluster.
       Manages isolated development environments, databases,
       message brokers, and LLM workloads on bare-metal K3s.
-spec: {}
+  labels:
+    openchoreo.dev/name: default
+spec:
+  deploymentPipelineRef:
+    kind: DeploymentPipeline
+    name: default
