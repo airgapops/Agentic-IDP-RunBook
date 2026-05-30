@@ -34,4 +34,4 @@ spec:
     projectName: default
     componentName: mock-api
   container:
-    image: mendhak/http-https-echo:33
+    image: gitea.zerops.internal/jadamson/mock-api:v1.0

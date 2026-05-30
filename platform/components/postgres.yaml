@@ -30,4 +30,4 @@ spec:
     projectName: default
     componentName: postgres
   container:
-    image: postgres:16-alpine
+    image: gitea.zerops.internal/jadamson/postgres:16-alpine

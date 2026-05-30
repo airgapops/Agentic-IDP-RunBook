@@ -30,4 +30,4 @@ spec:
     projectName: default
     componentName: rabbitmq
   container:
-    image: rabbitmq:3.13-management-alpine
+    image: gitea.zerops.internal/jadamson/rabbitmq:3.13-mgmt
