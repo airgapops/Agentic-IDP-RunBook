@@ -11,7 +11,7 @@ Nuestra red interna se distribuye de la siguiente manera:
 
 *   **Tier 0 (Confianza y Red):** Raspberry Pi (`192.168.0.9`) — Aloja PowerDNS y Step-CA.
 *   **Tier 1 (Gestión / Cerebro):** ThinkPad (`192.168.0.10`) — Corre el clúster de K3s de gestión, ArgoCD, Gitea, Crossplane y el Developer Portal.
-*   **Tier 2 (Cómputo / Músculo):** Host Ryzen (`192.168.0.13`) — Clúster de K3s físico independiente. Aloja y ejecuta los `vclusters` (clústeres virtuales independientes) con workloads reales y acceso a GPU. Acceso SSH: `admin` / `ADMIN123`.
+*   **Tier 2 (Cómputo / Músculo):** Host Ryzen (`192.168.0.13`) — Clúster de K3s físico independiente. Aloja y ejecuta los `vclusters` (clústeres virtuales independientes) con workloads reales y acceso a GPU. Acceso SSH: `admin` / `<DP_PASSWORD>`.
 
 ---
 
@@ -113,7 +113,7 @@ Para resolver esto de raíz y lograr un fideicomiso completo en la red interna:
 ## 5. Plan de Acción Ajustado (Fases Correctas)
 
 ### Fase 1: Inicialización del Clúster de Cómputo Independiente (Ryzen - 192.168.0.13)
-1.  **SSH y Acceso:** Conectarse vía SSH a la máquina potente (`admin` / `ADMIN123` en `192.168.0.13`).
+1.  **SSH y Acceso:** Conectarse vía SSH a la máquina potente (`admin` / `<DP_PASSWORD>` en `192.168.0.13`).
 2.  **Confianza de Red:** Descargar el certificado raíz `root_ca.crt` de la Raspberry Pi y registrarlo en el sistema operativo del Ryzen.
 3.  **Instalar K3s Autónomo:** Instalar K3s de forma independiente en la máquina Ryzen sin unirse a ningún clúster existente.
 4.  **Habilitar GPUs:** Instalar los controladores de NVIDIA y el plugin de GPU para Kubernetes en este K3s autónomo.

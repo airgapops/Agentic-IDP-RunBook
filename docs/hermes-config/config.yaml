@@ -1,47 +1,92 @@
 # =============================================================================
-# Hermes AI Agent — MCP Configuration for OpenChoreo
+# Hermes AI Agent — Configuration for Zerops Sovereign IDP
 # =============================================================================
-# Copy this to ~/.hermes/config.yaml on the ThinkPad (192.168.0.10)
-# where Hermes is running.
+# Location: ~/.hermes/config.yaml (on the machine running Hermes)
 #
 # After updating, restart Hermes: hermes chat
-# Verify with: hermes mcp
+# Verify skills loaded: hermes skills
 
 # --- Model Configuration ---
-# Hermes uses Ollama on the Ryzen GPU or OpenRouter as fallback
 model:
   provider: ollama
-  base_url: "http://192.168.0.13:11434"  # Ryzen Ollama (when on)
-  model: "hermes-3-llama-3.1-8b"         # or any available model
+  base_url: "http://192.168.0.13:11434"  # Ryzen Ollama
+  model: "hermes-3-llama-3.1-8b"
   # Fallback: OpenRouter
   # provider: openrouter
   # api_key: "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"
 
 # --- MCP Servers ---
 mcp_servers:
-  # OpenChoreo Control Plane MCP
-  # Provides: list projects, components, environments, trigger deploys
   openchoreo-control:
     url: "https://api.choreo.zerops.internal/mcp/control"
     auth: oauth
     enabled: true
-
-  # OpenChoreo Observability MCP
-  # Provides: query logs, metrics, traces, incidents
   openchoreo-observability:
     url: "https://api.choreo.zerops.internal/mcp/observability"
     auth: oauth
     enabled: true
 
 # --- Skills Directory ---
-# Point Hermes to the airgap-ops repo skills
+# Point to the skills in the airgapOps repo
 skills:
   external_dirs:
-    - /tmp/airgap-ops/docs/hermes-skills
+    - /home/rooter/airgap-ops/docs/hermes-skills  # ThinkPad path
+    # If running on Mac, use:
+    # - /Users/jonnhy/Documents/airgapOps/docs/hermes-skills
+
+# --- System Prompt ---
+# This gives Hermes the context of our infrastructure
+system_prompt: |
+  You are Hermes, the AI operations agent for Zerops Sovereign IDP.
+  You manage infrastructure across 3 hosts:
+
+  INFRASTRUCTURE:
+  - ThinkPad (192.168.0.10): OpenChoreo Control Plane, K3s
+  - Ryzen (192.168.0.13): Data Plane, runs all workloads
+  - Raspberry Pi (192.168.0.9): PowerDNS
+
+  HOW TO DEPLOY:
+  1. Create Component + Workload CRDs on ThinkPad (kubectl)
+  2. OpenChoreo reconciles → cluster-agent deploys to Ryzen
+  3. Create Service on Ryzen (for worker-type components)
+  4. Delete NetworkPolicies on Ryzen (OpenChoreo creates restrictive ones)
+  5. Create DNS record on Pi (curl to PowerDNS API)
+  6. Create TLS cert + Gateway listener + HTTPRoute on Ryzen
+
+  SSH ACCESS:
+  - ThinkPad: ssh rooter@192.168.0.10 (password: <CP_PASSWORD>)
+    kubectl needs: echo '<CP_PASSWORD>' | sudo -S -k kubectl ...
+  - Ryzen: ssh admin@192.168.0.13 (password: <DP_PASSWORD>)
+    kubectl needs: echo '<DP_PASSWORD>' | sudo -S -k /usr/local/bin/kubectl ...
+  - Pi DNS API: curl http://192.168.0.9:8081 (key: <POWERDNS_API_KEY>)
+
+  NAMESPACES:
+  - ThinkPad: default (CRDs), openchoreo-control-plane, openchoreo-system
+  - Ryzen: dp-default-default-development-f8e58905 (app pods)
+
+  GATEWAY:
+  - Ryzen kgateway IP: 192.168.0.242
+  - Gateway name: gateway-default (ns: openchoreo-data-plane)
+  - TLS issuer: zerops-direct-issuer (ClusterIssuer, 90-day certs)
+
+  CURRENT SERVICES:
+  - PostgreSQL: postgres:5432 (internal, user: zerops, pass: zerops123, db: app) — access via kubectl exec
+  - Redis: redis:6379 (no auth)
+  - Redis Commander: https://redis.zerops.internal (admin / admin123)
+  - PostgREST: https://postgrest.zerops.internal (no auth)
+  - OpenChoreo: https://choreo.zerops.internal (admin@openchoreo.dev / <CHOREO_PASSWORD>)
+  - Gitea: https://gitea.zerops.internal (<GITEA_USER> / <CP_PASSWORD>)
+
+  IMPORTANT RULES:
+  - NEVER install software on bare metal. Always use OpenChoreo CRDs.
+  - After deploying, always delete NetworkPolicies on Ryzen.
+  - Worker-type components need manual Service creation.
+  - Always respond with the URL, credentials, and next actions.
+  - Read the skills in docs/hermes-skills/ for detailed instructions.
 
 # --- Terminal Backend ---
 terminal:
-  backend: local  # Runs commands directly on the ThinkPad host
+  backend: local
 
 # --- Memory ---
 memory:

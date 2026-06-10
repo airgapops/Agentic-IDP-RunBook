@@ -492,21 +492,21 @@ kubectl -n mi-namespace delete all --all
 
 ```bash
 # Registrar un nuevo hostname
-curl -X PATCH -H "X-API-Key: super-secret-api-key-zerops" \
+curl -X PATCH -H "X-API-Key: <POWERDNS_API_KEY>" \
   -H "Content-Type: application/json" \
   -d '{"rrsets": [{"name": "<hostname>.zerops.internal.", "type": "A", "ttl": 300, "changetype": "REPLACE", "records": [{"content": "<IP>", "disabled": false}]}]}' \
   http://192.168.0.9:8081/api/v1/servers/localhost/zones/zerops.internal.
 
 # 1. Consultar la zona completa
-curl -s -H "X-API-Key: super-secret-api-key-zerops" \
+curl -s -H "X-API-Key: <POWERDNS_API_KEY>" \
   http://192.168.0.9:8081/api/v1/servers/localhost/zones/zerops.internal.
 
 # 2. Consultar un registro en formato legible
-curl -s -H "X-API-Key: super-secret-api-key-zerops" \
+curl -s -H "X-API-Key: <POWERDNS_API_KEY>" \
   http://192.168.0.9:8081/api/v1/servers/localhost/zones/zerops.internal. | python3 -m json.tool
 
 # 3. Eliminar manualmente el registro de la cola si está bloqueado
-curl -X PATCH -H "X-API-Key: super-secret-api-key-zerops" \
+curl -X PATCH -H "X-API-Key: <POWERDNS_API_KEY>" \
   -H "Content-Type: application/json" \
   -d '{"rrsets": [{"name": "queue.zerops.internal.", "type": "A", "changetype": "DELETE"}]}' \
   http://192.168.0.9:8081/api/v1/servers/localhost/zones/zerops.internal.

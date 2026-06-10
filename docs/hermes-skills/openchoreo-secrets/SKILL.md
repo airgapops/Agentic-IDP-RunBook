@@ -116,3 +116,29 @@ kubectl get workload {component-name} -o yaml | grep -A5 "env:"
 - Label secrets with `openchoreo.dev/component` for traceability
 - Production secrets should use strong random passwords
 - Use `kubectl create secret --dry-run=client -o yaml | kubectl apply -f -` for idempotency
+
+## 🚨 CRITICAL: OpenChoreo Webhook Password Masking
+
+> **OpenChoreo has a mutating webhook that MASKS passwords in URLs.**
+> When you save a Workload with `PGRST_DB_URI=postgres://zerops:zerops123@postgres:5432/app`,
+> the webhook replaces the password: `postgres://zerops:***@postgres:5432/app`
+>
+> **THIS IS NORMAL BEHAVIOR. DO NOT TRY TO FIX IT.**
+>
+> The REAL password still reaches the data plane ConfigMap correctly.
+> The masking only affects what you see in `kubectl get workload -o yaml`.
+
+### What to do if you see `***` in a Workload env var:
+1. **DO NOTHING** — it is working correctly
+2. **Verify on the data plane** — check the ConfigMap in the data plane namespace:
+   ```bash
+   kubectl --kubeconfig=/root/ryzen-kubeconfig.yaml get configmap -n {NAMESPACE} -o yaml | grep PGRST_DB_URI
+   ```
+3. The ConfigMap will have the REAL value
+
+### What NEVER to do:
+- **🚨 NEVER delete a Workload** to "fix" masked values
+- **🚨 NEVER delete ConfigMaps** in data plane namespaces
+- **🚨 NEVER patch Workloads** repeatedly to try to set the password
+- **🚨 NEVER delete and recreate resources** to work around masking
+- These actions break the entire deployment and all environments

@@ -112,7 +112,7 @@ launch=gsqlite3
 gsqlite3-database=/var/lib/powerdns/pdns.sqlite3
 gsqlite3-dnssec=yes
 api=yes
-api-key=super-secret-api-key-zerops
+api-key=<POWERDNS_API_KEY>
 webserver=yes
 webserver-address=0.0.0.0
 webserver-allow-from=0.0.0.0/0
@@ -171,7 +171,7 @@ podman-compose up -d
 
 **2. Crear la Zona Corporativa DNS:**
 ```bash
-curl -X POST -H "X-API-Key: super-secret-api-key-zerops" \
+curl -X POST -H "X-API-Key: <POWERDNS_API_KEY>" \
   -d '{"name":"zerops.internal.", "kind": "Native"}' \
   http://localhost:8081/api/v1/servers/localhost/zones
 ```

@@ -1,0 +1,45 @@
+# =============================================================================
+# agctl Configuration — airgapOps CLI
+# Copy to: /etc/agctl/config.yaml
+# =============================================================================
+
+clusters:
+  control-plane:
+    kubeconfig: /etc/rancher/k3s/k3s.yaml
+    host: <CONTROL_PLANE_IP>        # e.g., 192.168.0.10
+  data-plane:
+    kubeconfig: /etc/agctl/dp-kubeconfig.yaml
+    host: <DATA_PLANE_IP>           # e.g., 192.168.0.13
+    user: <DP_SSH_USER>
+    password: <DP_SSH_PASSWORD>
+  dns:
+    host: <DNS_NODE_IP>             # e.g., 192.168.0.9
+    user: <DNS_SSH_USER>
+    password: <DNS_SSH_PASSWORD>
+    apiKey: <POWERDNS_API_KEY>
+    zone: <YOUR_DOMAIN>             # e.g., zerops.internal
+
+environments:
+  development:
+    namespace: <DEV_NAMESPACE>      # e.g., dp-default-default-development-xxxxx
+    storageClass: local-path
+    short: dev
+  staging:
+    namespace: <STG_NAMESPACE>      # e.g., dp-default-default-staging-xxxxx
+    storageClass: local-path
+    short: stg
+  production:
+    namespace: <PROD_NAMESPACE>     # e.g., dp-default-default-production-xxxxx
+    storageClass: local-path
+    short: prod
+
+gateway:
+  name: gateway-default
+  namespace: openchoreo-data-plane
+  ip: <GATEWAY_IP>                  # MetalLB IP, e.g., 192.168.0.242
+  maxListeners: 7
+  tlsIssuer: <TLS_ISSUER_NAME>     # e.g., zerops-direct-issuer
+
+defaults:
+  project: default
+  domain: <YOUR_DOMAIN>            # e.g., zerops.internal

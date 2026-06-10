@@ -59,7 +59,7 @@ curl -s --location "${THUNDER_URL}/setup/user-schemas/${USER_SCHEMA_ID}/users" \
   --header "Content-Type: application/json" \
   --data "{
     \"username\": \"admin@openchoreo.dev\",
-    \"password\": \"Admin@123\",
+    \"password\": \"<CHOREO_PASSWORD>\",
     \"given_name\": \"Admin\",
     \"family_name\": \"User\"
   }" --max-time 30 || true

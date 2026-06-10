@@ -55,7 +55,7 @@ graph TD
 ### 1. Servidor de DNS Privado: PowerDNS (Raspberry Pi)
 PowerDNS corre en un contenedor Podman en la Raspberry Pi, proporcionando la zona privada local `zerops.internal`.
 
-*   **Configuración del API**: Puerto `8081` habilitado con la API Key `super-secret-api-key-zerops`.
+*   **Configuración del API**: Puerto `8081` habilitado con la API Key `<POWERDNS_API_KEY>`.
 *   **Registro Wildcard Principal**:
     *   **Registro**: `*.zerops.internal`
     *   **Tipo**: `A`
@@ -73,7 +73,7 @@ Step-CA opera en el puerto `9000` como un servidor PKI privado compatible con el
 ### 1. Instalación de K3s de Gestión
 Instalado en el ThinkPad Ubuntu (`192.168.0.10`). El control administrativo se realiza mediante SSH utilizando la autenticación por contraseña bypass:
 ```bash
-sshpass -p 'Panama2028#...' ssh -o PubkeyAuthentication=no -o StrictHostKeyChecking=no rooter@192.168.0.10 "sudo kubectl get nodes"
+sshpass -p '<CP_PASSWORD>' ssh -o PubkeyAuthentication=no -o StrictHostKeyChecking=no rooter@192.168.0.10 "sudo kubectl get nodes"
 ```
 
 ### 2. Balanceador de Carga: MetalLB
@@ -191,7 +191,7 @@ rules:
 ## PB-02: El Corazón del AI-IDP (Tier 2 - GitOps)
 
 ### 1. Repositorio de la Verdad: Gitea
-Expuesto a través de Envoy en `https://gitea.zerops.internal`. Toda la configuración se guarda en el repositorio `airgap-ops` del usuario `jadamson`.
+Expuesto a través de Envoy en `https://gitea.zerops.internal`. Toda la configuración se guarda en el repositorio `airgap-ops` del usuario `<GITEA_USER>`.
 
 ### 2. Motor GitOps y Configuración Insecure en ArgoCD
 ArgoCD reside en el namespace `argocd` y opera bajo `https://argocd.zerops.internal`. Para evitar redirecciones TLS infinitas debido a la terminación TLS en Envoy, se activa el modo inseguro:
@@ -217,7 +217,7 @@ metadata:
     argocd.argoproj.io/secret-type: repository
 type: Opaque
 stringData:
-  url: https://gitea.zerops.internal/jadamson/airgap-ops.git
+  url: https://gitea.zerops.internal/<GITEA_USER>/airgap-ops.git
   insecure: "true"
 ```
 

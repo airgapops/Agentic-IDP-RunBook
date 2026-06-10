@@ -286,9 +286,9 @@ kubectl create namespace gitea
 ```bash
 helm install gitea gitea-charts/gitea \
   --namespace gitea \
-  --set gitea.admin.username=jadamson \
+  --set gitea.admin.username=<GITEA_USER> \
   --set gitea.admin.password=ChangeThisPassword123! \
-  --set gitea.admin.email=jadamson@zerops.internal \
+  --set gitea.admin.email=<GITEA_USER>@zerops.internal \
   --set persistence.size=10Gi \
   --set postgresql.enabled=false \
   --set postgresql-ha.enabled=false \
@@ -323,7 +323,7 @@ EOF
 
 **4. Registrar DNS para Gitea en PowerDNS:**
 ```bash
-curl -X PATCH -H "X-API-Key: super-secret-api-key-zerops" \
+curl -X PATCH -H "X-API-Key: <POWERDNS_API_KEY>" \
   -H "Content-Type: application/json" \
   -d '{"rrsets": [{"name": "gitea.zerops.internal.", "type": "A", "ttl": 300, "changetype": "REPLACE", "records": [{"content": "192.168.0.203", "disabled": false}]}]}' \
   http://192.168.0.9:8081/api/v1/servers/localhost/zones/zerops.internal.
@@ -334,12 +334,12 @@ curl -X PATCH -H "X-API-Key: super-secret-api-key-zerops" \
 # Una vez que Gitea esté accesible en https://gitea.zerops.internal
 curl -k -X POST https://gitea.zerops.internal/api/v1/user/repos \
   -H "Content-Type: application/json" \
-  -u "jadamson:ChangeThisPassword123!" \
+  -u "<GITEA_USER>:ChangeThisPassword123!" \
   -d '{"name": "airgap-ops", "description": "Zerops Sovereign IDP - Infrastructure as Code", "private": false, "auto_init": true}'
 
 # Push del repo local
 cd ~/airgap-ops
-git remote add origin https://gitea.zerops.internal/jadamson/airgap-ops.git
+git remote add origin https://gitea.zerops.internal/<GITEA_USER>/airgap-ops.git
 git push -u origin main
 ```
 
@@ -393,7 +393,7 @@ EOF
 
 **5. Registrar DNS para ArgoCD:**
 ```bash
-curl -X PATCH -H "X-API-Key: super-secret-api-key-zerops" \
+curl -X PATCH -H "X-API-Key: <POWERDNS_API_KEY>" \
   -H "Content-Type: application/json" \
   -d '{"rrsets": [{"name": "argocd.zerops.internal.", "type": "A", "ttl": 300, "changetype": "REPLACE", "records": [{"content": "192.168.0.203", "disabled": false}]}]}' \
   http://192.168.0.9:8081/api/v1/servers/localhost/zones/zerops.internal.
@@ -410,7 +410,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://gitea.zerops.internal/jadamson/airgap-ops.git
+    repoURL: https://gitea.zerops.internal/<GITEA_USER>/airgap-ops.git
     targetRevision: HEAD
     path: apps/
   destination:

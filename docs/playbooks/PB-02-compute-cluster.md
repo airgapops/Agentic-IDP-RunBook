@@ -264,7 +264,7 @@ kubectl delete object test-namespace-ryzen
 
 **Desde cualquier nodo, registrar el hostname del Ryzen en PowerDNS:**
 ```bash
-curl -X PATCH -H "X-API-Key: super-secret-api-key-zerops" \
+curl -X PATCH -H "X-API-Key: <POWERDNS_API_KEY>" \
   -H "Content-Type: application/json" \
   -d '{"rrsets": [{"name": "ryzen.zerops.internal.", "type": "A", "ttl": 300, "changetype": "REPLACE", "records": [{"content": "192.168.0.13", "disabled": false}]}]}' \
   http://192.168.0.9:8081/api/v1/servers/localhost/zones/zerops.internal.

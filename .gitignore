@@ -1,13 +1,22 @@
 # =============================================================================
-# Zerops Sovereign IDP — .gitignore
+# airgapOps Agentic IDP RunBook — .gitignore
 # =============================================================================
 
 # Secrets and credentials (NEVER commit)
 envs.txt
+entry_blog.md
 *.kubeconfig.yaml
 *-kubeconfig.yaml
 *.pem
 secrets/
+content/
+
+# Compiled binaries
+cli/bin/
+*.exe
+
+# Go
+cli/go.sum
 
 # OS files
 .DS_Store
@@ -16,6 +25,7 @@ Thumbs.db
 # IDE / Editor
 .vscode/
 .idea/
+.gemini/
 *.swp
 *.swo
 *~
