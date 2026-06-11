@@ -80,6 +80,27 @@ airgapOps/
     └── hermes-skills/             # Skills de Hermes AI
 ```
 
+> **Nota:** Los binarios compilados (`cli/agctl`, `cli/agctl_linux`) **no se incluyen en el repositorio** — deben generarse localmente. Ver sección [Build del CLI](#️-build-del-cli-agctl) abajo.
+
+## 🔧 Build del CLI (`agctl`)
+
+Los binarios de `agctl` se excluyen del repositorio para evitar subir archivos pesados (>10MB cada uno). Deben compilarse localmente antes de usar.
+
+```bash
+cd cli/
+
+# Para macOS (arquitectura local)
+go build -o agctl .
+
+# Para Linux (cross-compile — deploy en ThinkPad/Ryzen)
+GOOS=linux GOARCH=amd64 go build -o agctl_linux .
+
+# Verificar
+./agctl --help
+```
+
+> ⚠️ **Requisito:** Tener [Go 1.21+](https://go.dev/dl/) instalado. Los archivos `cli/agctl` y `cli/agctl_linux` están en `.gitignore` para mantener el repositorio liviano.
+
 ## 🔗 URLs del Ambiente
 
 | Servicio | URL |
