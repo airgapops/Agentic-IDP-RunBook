@@ -13,6 +13,8 @@ content/
 
 # Compiled binaries
 cli/bin/
+cli/agctl
+cli/agctl_linux
 *.exe
 
 # Go
