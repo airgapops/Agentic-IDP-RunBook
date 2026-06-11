@@ -2,6 +2,10 @@
 
 > Air-gapped Internal Developer Platform powered by **OpenChoreo** on bare-metal K3s clusters, with Gitea CI/CD, Hermes AI, and a custom `agctl` CLI.
 
+[![Release](https://img.shields.io/badge/release-v0.0.2-blue?style=flat-square)](https://github.com/airgapops/Agentic-IDP-RunBook/releases/tag/v0.0.2)
+[![Changelog](https://img.shields.io/badge/changelog-CHANGELOG.md-green?style=flat-square)](./CHANGELOG.md)
+[![License](https://img.shields.io/badge/license-MIT-lightgrey?style=flat-square)](./LICENSE)
+
 ## 🌐 Architecture
 
 ```
@@ -80,26 +84,36 @@ airgapOps/
     └── hermes-skills/             # Skills de Hermes AI
 ```
 
-> **Nota:** Los binarios compilados (`cli/agctl`, `cli/agctl_linux`) **no se incluyen en el repositorio** — deben generarse localmente. Ver sección [Build del CLI](#️-build-del-cli-agctl) abajo.
+> **Nota:** Los binarios compilados (`cli/bin/agctl`, `cli/bin/agctl-linux`) **no se incluyen en el repositorio** — deben generarse localmente. Ver sección [Build del CLI](#️-build-del-cli-agctl) abajo.
 
 ## 🔧 Build del CLI (`agctl`)
 
-Los binarios de `agctl` se excluyen del repositorio para evitar subir archivos pesados (>10MB cada uno). Deben compilarse localmente antes de usar.
+Los binarios se excluyen del repositorio (>10MB). El proyecto usa un `Makefile` como sistema de build canónico.
+
+**Requisito:** [Go 1.21+](https://go.dev/dl/)
 
 ```bash
 cd cli/
 
-# Para macOS (arquitectura local)
-go build -o agctl .
+# macOS — build local
+make build
+# → bin/agctl
 
-# Para Linux (cross-compile — deploy en ThinkPad/Ryzen)
-GOOS=linux GOARCH=amd64 go build -o agctl_linux .
+# Linux — cross-compile para ThinkPad / Ryzen
+make build-linux
+# → bin/agctl-linux
 
-# Verificar
-./agctl --help
+# Instalar en /usr/local/bin (requiere sudo)
+make install
+
+# Deploy directo al Control Plane vía SSH
+make deploy   # requiere configurar CP_HOST en el Makefile
+
+# Ver todos los targets disponibles
+make help
 ```
 
-> ⚠️ **Requisito:** Tener [Go 1.21+](https://go.dev/dl/) instalado. Los archivos `cli/agctl` y `cli/agctl_linux` están en `.gitignore` para mantener el repositorio liviano.
+> Los archivos `cli/agctl`, `cli/agctl_linux` y `cli/bin/` están en `.gitignore`.
 
 ## 🔗 URLs del Ambiente
 
