@@ -83,19 +83,23 @@ Examples:
 }
 
 func setSecrets(component, envName string, secrets map[string]string) error {
-	env, err := cfg.ResolveEnv(envName)
+	_, err := cfg.ResolveEnv(envName)
 	if err != nil {
 		return err
+	}
+	namespace, err := resolveNamespace(envName)
+	if err != nil {
+		return fmt.Errorf("resolving namespace: %w", err)
 	}
 	dp := kube.NewDataPlaneClient(cfg.DataPlaneKubeconfig())
 
 	// Find the ConfigMap for this component
 	cmPrefix := fmt.Sprintf("%s-%s-env-configs", component, envName)
-	cmName, err := dp.FindConfigMap(env.Namespace, cmPrefix)
+	cmName, err := dp.FindConfigMap(namespace, cmPrefix)
 	if err != nil {
 		// Try alternate naming: component-envName-env-configs-hash
 		cmPrefix = component
-		cmName, err = dp.FindConfigMap(env.Namespace, cmPrefix)
+		cmName, err = dp.FindConfigMap(namespace, cmPrefix)
 		if err != nil {
 			return fmt.Errorf("no ConfigMap found for %s in %s. Is the component deployed?", component, envName)
 		}
@@ -105,7 +109,7 @@ func setSecrets(component, envName string, secrets map[string]string) error {
 
 	// Patch each secret
 	for key, value := range secrets {
-		if _, err := dp.PatchConfigMap(env.Namespace, cmName, key, value); err != nil {
+		if _, err := dp.PatchConfigMap(namespace, cmName, key, value); err != nil {
 			return fmt.Errorf("setting %s: %w", key, err)
 		}
 		maskedValue := maskValue(key, value)
@@ -113,10 +117,10 @@ func setSecrets(component, envName string, secrets map[string]string) error {
 	}
 
 	// Restart deployment to pick up new values
-	deployName, err := dp.GetDeploymentName(env.Namespace, "openchoreo.dev/component="+component)
+	deployName, err := dp.GetDeploymentName(namespace, "openchoreo.dev/component="+component)
 	if err == nil {
 		fmt.Printf("  🔄 Restarting %s...\n", deployName)
-		dp.RolloutRestart(env.Namespace, deployName)
+		dp.RolloutRestart(namespace, deployName)
 	}
 
 	fmt.Printf("  ✅ Secrets updated (bypassed webhook masking)\n")
@@ -147,14 +151,19 @@ Examples:
 		if err != nil {
 			return err
 		}
+		_ = env
+		namespace, err := resolveNamespace(envFlag)
+		if err != nil {
+			return fmt.Errorf("resolving namespace: %w", err)
+		}
 		dp := kube.NewDataPlaneClient(cfg.DataPlaneKubeconfig())
 
-		cmName, err := findComponentConfigMap(dp, env.Namespace, component)
+		cmName, err := findComponentConfigMap(dp, namespace, component)
 		if err != nil {
 			return err
 		}
 
-		value, err := dp.GetConfigMapValue(env.Namespace, cmName, key)
+		value, err := dp.GetConfigMapValue(namespace, cmName, key)
 		if err != nil {
 			return fmt.Errorf("key %s not found: %w", key, err)
 		}
@@ -200,22 +209,26 @@ Examples:
 }
 
 func listSecrets(component, envName string) error {
-	env, err := cfg.ResolveEnv(envName)
+	_, err := cfg.ResolveEnv(envName)
 	if err != nil {
 		return err
+	}
+	namespace, err := resolveNamespace(envName)
+	if err != nil {
+		return fmt.Errorf("resolving namespace: %w", err)
 	}
 	dp := kube.NewDataPlaneClient(cfg.DataPlaneKubeconfig())
 
-	cmName, err := findComponentConfigMap(dp, env.Namespace, component)
+	cmName, err := findComponentConfigMap(dp, namespace, component)
 	if err != nil {
 		return err
 	}
 
-	out, err := dp.Run("get", "configmap", cmName, "-n", env.Namespace,
+	out, err := dp.Run("get", "configmap", cmName, "-n", namespace,
 		"-o", "jsonpath={range .data}{@.key}: {@.value}{\"\\n\"}{end}")
 	if err != nil {
 		// Fallback: get all data as JSON
-		out, err = dp.Run("get", "configmap", cmName, "-n", env.Namespace,
+		out, err = dp.Run("get", "configmap", cmName, "-n", namespace,
 			"-o", "jsonpath={.data}")
 		if err != nil {
 			return err
@@ -248,27 +261,27 @@ Examples:
 		component := args[0]
 		dp := kube.NewDataPlaneClient(cfg.DataPlaneKubeconfig())
 
-		fromCfg, err := cfg.ResolveEnv(fromEnv)
+		fromNS, err := resolveNamespace(fromEnv)
 		if err != nil {
-			return err
+			return fmt.Errorf("resolving from namespace: %w", err)
 		}
-		toCfg, err := cfg.ResolveEnv(toEnv)
+		toNS, err := resolveNamespace(toEnv)
 		if err != nil {
-			return err
+			return fmt.Errorf("resolving to namespace: %w", err)
 		}
 
 		// Get ConfigMaps from both envs
-		fromCM, err := findComponentConfigMap(dp, fromCfg.Namespace, component)
+		fromCM, err := findComponentConfigMap(dp, fromNS, component)
 		if err != nil {
 			return fmt.Errorf("source: %w", err)
 		}
-		toCM, err := findComponentConfigMap(dp, toCfg.Namespace, component)
+		toCM, err := findComponentConfigMap(dp, toNS, component)
 		if err != nil {
 			return fmt.Errorf("target: %w", err)
 		}
 
-		fromData := getConfigMapData(dp, fromCfg.Namespace, fromCM)
-		toData := getConfigMapData(dp, toCfg.Namespace, toCM)
+		fromData := getConfigMapData(dp, fromNS, fromCM)
+		toData := getConfigMapData(dp, toNS, toCM)
 
 		fmt.Printf("Secret diff for %s: %s → %s\n", component, fromEnv, toEnv)
 		fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
@@ -329,18 +342,18 @@ Examples:
 
 		dp := kube.NewDataPlaneClient(cfg.DataPlaneKubeconfig())
 
-		fromCfg, err := cfg.ResolveEnv(fromEnv)
+		fromNS, err := resolveNamespace(fromEnv)
 		if err != nil {
-			return err
+			return fmt.Errorf("resolving from namespace: %w", err)
 		}
 
-		fromCM, err := findComponentConfigMap(dp, fromCfg.Namespace, component)
+		fromCM, err := findComponentConfigMap(dp, fromNS, component)
 		if err != nil {
 			return fmt.Errorf("source: %w", err)
 		}
 
 		// Get all data from source
-		data := getConfigMapData(dp, fromCfg.Namespace, fromCM)
+		data := getConfigMapData(dp, fromNS, fromCM)
 		if len(data) == 0 {
 			return fmt.Errorf("no secrets found in %s for %s", fromEnv, component)
 		}

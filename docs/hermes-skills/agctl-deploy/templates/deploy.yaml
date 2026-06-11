@@ -1,0 +1,50 @@
+name: Build & Deploy
+on:
+  push:
+    branches: [main, staging, production]
+
+env:
+  REGISTRY: gitea.zerops.internal
+  IMAGE_NAME: ${{ gitea.repository }}
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set environment from branch
+        id: env
+        run: |
+          BRANCH="${{ gitea.ref_name }}"
+          case $BRANCH in
+            main)       echo "ENV=development" >> $GITHUB_OUTPUT ;;
+            staging)    echo "ENV=staging" >> $GITHUB_OUTPUT ;;
+            production) echo "ENV=production" >> $GITHUB_OUTPUT ;;
+            *)          echo "ENV=development" >> $GITHUB_OUTPUT ;;
+          esac
+          echo "SHA=${{ gitea.sha_short }}" >> $GITHUB_OUTPUT
+          echo "📌 Branch: $BRANCH → Environment: $(grep ENV= $GITHUB_OUTPUT | cut -d= -f2)"
+
+      - name: Build container image
+        run: |
+          docker build -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.env.outputs.SHA }} .
+          docker tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.env.outputs.SHA }} \
+                     ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          echo "✅ Built: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.env.outputs.SHA }}"
+
+      - name: Push to Gitea Registry
+        run: |
+          echo "${{ secrets.REGISTRY_PASS }}" | docker login ${{ env.REGISTRY }} -u ${{ secrets.REGISTRY_USER }} --password-stdin
+          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.env.outputs.SHA }}
+          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          echo "✅ Pushed to registry"
+
+      - name: Deploy via agctl
+        run: |
+          APP_NAME=$(echo "${{ env.IMAGE_NAME }}" | cut -d/ -f2)
+          agctl deploy app $APP_NAME \
+            --image ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.env.outputs.SHA }} \
+            --env ${{ steps.env.outputs.ENV }}
+          echo "🚀 Deployed $APP_NAME to ${{ steps.env.outputs.ENV }}"

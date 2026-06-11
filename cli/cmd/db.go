@@ -64,20 +64,24 @@ Examples:
 }
 
 func execSQL(component, envName, sql string) error {
-	env, err := cfg.ResolveEnv(envName)
+	_, err := cfg.ResolveEnv(envName)
 	if err != nil {
 		return err
 	}
+	namespace, err := resolveNamespace(envName)
+	if err != nil {
+		return fmt.Errorf("resolving namespace: %w", err)
+	}
 	dp := kube.NewDataPlaneClient(cfg.DataPlaneKubeconfig())
 
-	pod, err := dp.GetPodName(env.Namespace, "openchoreo.dev/component="+component)
+	pod, err := dp.GetPodName(namespace, "openchoreo.dev/component="+component)
 	if err != nil {
 		return fmt.Errorf("no %s pod in %s", component, envName)
 	}
 
 	// Detect DB type and build exec command
 	dbUser, dbName := detectDBCredentials(component)
-	out, err := dp.Exec(env.Namespace, pod, "psql", "-U", dbUser, "-d", dbName, "-c", sql)
+	out, err := dp.Exec(namespace, pod, "psql", "-U", dbUser, "-d", dbName, "-c", sql)
 	if err != nil {
 		return fmt.Errorf("SQL error: %w", err)
 	}
@@ -129,19 +133,23 @@ Examples:
 }
 
 func seedDB(component, envName, sql string) error {
-	env, err := cfg.ResolveEnv(envName)
+	_, err := cfg.ResolveEnv(envName)
 	if err != nil {
 		return err
 	}
+	namespace, err := resolveNamespace(envName)
+	if err != nil {
+		return fmt.Errorf("resolving namespace: %w", err)
+	}
 	dp := kube.NewDataPlaneClient(cfg.DataPlaneKubeconfig())
 
-	pod, err := dp.GetPodName(env.Namespace, "openchoreo.dev/component="+component)
+	pod, err := dp.GetPodName(namespace, "openchoreo.dev/component="+component)
 	if err != nil {
 		return fmt.Errorf("no %s pod in %s", component, envName)
 	}
 
 	dbUser, dbName := detectDBCredentials(component)
-	out, err := dp.Exec(env.Namespace, pod, "psql", "-U", dbUser, "-d", dbName, "-c", sql)
+	out, err := dp.Exec(namespace, pod, "psql", "-U", dbUser, "-d", dbName, "-c", sql)
 	if err != nil {
 		return fmt.Errorf("seed failed: %w", err)
 	}
@@ -151,10 +159,10 @@ func seedDB(component, envName, sql string) error {
 	fmt.Printf("  ✅ Seed complete (%d SQL statements executed)\n", len(lines))
 
 	// Reload PostgREST schema if postgrest exists in this namespace
-	pgrst, _ := dp.GetDeploymentName(env.Namespace, "openchoreo.dev/component=postgrest")
+	pgrst, _ := dp.GetDeploymentName(namespace, "openchoreo.dev/component=postgrest")
 	if pgrst != "" {
 		fmt.Printf("  🔄 Reloading PostgREST schema cache...\n")
-		dp.RolloutRestart(env.Namespace, pgrst)
+		dp.RolloutRestart(namespace, pgrst)
 		fmt.Printf("  ✅ PostgREST restarted\n")
 	}
 
@@ -192,13 +200,17 @@ Examples:
 }
 
 func showTables(component, envName string) error {
-	env, err := cfg.ResolveEnv(envName)
+	_, err := cfg.ResolveEnv(envName)
 	if err != nil {
 		return err
 	}
+	namespace, err := resolveNamespace(envName)
+	if err != nil {
+		return fmt.Errorf("resolving namespace: %w", err)
+	}
 	dp := kube.NewDataPlaneClient(cfg.DataPlaneKubeconfig())
 
-	pod, err := dp.GetPodName(env.Namespace, "openchoreo.dev/component="+component)
+	pod, err := dp.GetPodName(namespace, "openchoreo.dev/component="+component)
 	if err != nil {
 		return fmt.Errorf("no %s pod in %s", component, envName)
 	}
@@ -212,7 +224,7 @@ JOIN pg_class c ON c.relname = t.tablename
 WHERE schemaname = 'public'
 ORDER BY tablename;`
 
-	out, err := dp.Exec(env.Namespace, pod, "psql", "-U", dbUser, "-d", dbName, "-c", sql)
+	out, err := dp.Exec(namespace, pod, "psql", "-U", dbUser, "-d", dbName, "-c", sql)
 	if err != nil {
 		return fmt.Errorf("query failed: %w", err)
 	}

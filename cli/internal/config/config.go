@@ -14,6 +14,7 @@ type Config struct {
 	Environments map[string]EnvironmentConfig `yaml:"environments"`
 	Gateway      GatewayConfig               `yaml:"gateway"`
 	Defaults     DefaultsConfig              `yaml:"defaults"`
+	Gitea        GiteaConfig                 `yaml:"gitea"`
 }
 
 type ClustersConfig struct {
@@ -54,6 +55,13 @@ type GatewayConfig struct {
 type DefaultsConfig struct {
 	Project string `yaml:"project"`
 	Domain  string `yaml:"domain"`
+}
+
+type GiteaConfig struct {
+	URL      string `yaml:"url"`
+	User     string `yaml:"user"`
+	Password string `yaml:"password"`
+	Token    string `yaml:"token"`
 }
 
 // Load reads config from file, falling back to default locations
@@ -103,6 +111,26 @@ func (c *Config) ResolveEnv(name string) (*EnvironmentConfig, error) {
 		return nil, fmt.Errorf("unknown environment %q. Available: %v", name, c.EnvNames())
 	}
 	return &env, nil
+}
+
+// ResolveNamespace returns the data plane namespace for a project+environment combo.
+// For the "default" project, it uses the namespace from config directly.
+// For other projects, it discovers the namespace dynamically via kubectl.
+func (c *Config) ResolveNamespace(project, envName string) (string, error) {
+	env, err := c.ResolveEnv(envName)
+	if err != nil {
+		return "", err
+	}
+
+	// For default project, use the pre-configured namespace
+	if project == "" || project == c.Defaults.Project {
+		return env.Namespace, nil
+	}
+
+	// For other projects, derive from the pattern:
+	// dp-{project}-default-{envName}-{hash}
+	// We'll discover it dynamically at runtime via kubectl
+	return fmt.Sprintf("PROJECT_DISCOVER:%s:%s", project, envName), nil
 }
 
 // EnvNames returns all configured environment names

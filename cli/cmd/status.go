@@ -36,8 +36,9 @@ func runStatus(cmd *cobra.Command, args []string) error {
 
 	fmt.Println()
 	fmt.Println("╔══════════════════════════════════════════════════════════════╗")
-	fmt.Println("║              agctl — Platform Status                        ║")
+	fmt.Printf("║              agctl v%s — Platform Status                  ║\n", Version)
 	fmt.Println("╚══════════════════════════════════════════════════════════════╝")
+	fmt.Printf("  📂 Project: %s\n", projectFlag)
 	fmt.Println()
 
 	// Control Plane
@@ -65,8 +66,8 @@ func runStatus(cmd *cobra.Command, args []string) error {
 		fmt.Printf("  %s Pods: %d/%d running\n", icon, running, total)
 	}
 
-	// Components
-	components, _ := cp.Run("get", "component", "-n", "default", "--no-headers",
+	// Components for current project
+	components, _ := cp.Run("get", "component", "-n", projectFlag, "--no-headers",
 		"-o", "custom-columns=NAME:.metadata.name")
 	if components != "" {
 		fmt.Printf("  📋 Components: %s\n", strings.Join(strings.Fields(components), ", "))
@@ -83,15 +84,22 @@ func runStatus(cmd *cobra.Command, args []string) error {
 		envs = map[string]config.EnvironmentConfig{envFlag: *env}
 	}
 
-	for envName, env := range envs {
-		fmt.Printf("🌍 %s (%s)\n", capitalize(envName), env.Short)
+	for envName, _ := range envs {
+		// Resolve namespace for current project
+		namespace, err := resolveNamespace(envName)
+		if err != nil {
+			namespace = "(unknown)"
+		}
+		env, _ := cfg.ResolveEnv(envName)
+
+		fmt.Printf("🌍 %s (%s) — %s\n", capitalize(envName), env.Short, namespace)
 		fmt.Println("───────────────────────────────────────────────────────────────")
 
 		// Pods
-		pods, err := dp.Run("get", "pods", "-n", env.Namespace, "--no-headers",
+		pods, err := dp.Run("get", "pods", "-n", namespace, "--no-headers",
 			"-o", "custom-columns=NAME:.metadata.name,STATUS:.status.phase,COMPONENT:.metadata.labels.openchoreo\\.dev/component")
 		if err != nil {
-			fmt.Printf("  ❌ Cannot reach namespace %s\n", env.Namespace)
+			fmt.Printf("  ❌ Cannot reach namespace %s\n", namespace)
 			continue
 		}
 
@@ -110,7 +118,7 @@ func runStatus(cmd *cobra.Command, args []string) error {
 		}
 
 		// PVCs
-		pvcs, _ := dp.Run("get", "pvc", "-n", env.Namespace, "--no-headers",
+		pvcs, _ := dp.Run("get", "pvc", "-n", namespace, "--no-headers",
 			"-l", "app.kubernetes.io/managed-by=agctl",
 			"-o", "custom-columns=NAME:.metadata.name,SIZE:.spec.resources.requests.storage,STATUS:.status.phase")
 		if pvcs != "" {
@@ -127,7 +135,7 @@ func runStatus(cmd *cobra.Command, args []string) error {
 		}
 
 		// Services
-		svcs, _ := dp.Run("get", "svc", "-n", env.Namespace, "--no-headers",
+		svcs, _ := dp.Run("get", "svc", "-n", namespace, "--no-headers",
 			"-o", "custom-columns=NAME:.metadata.name,PORT:.spec.ports[0].port")
 		if svcs != "" {
 			svcList := []string{}

@@ -79,6 +79,11 @@ func attachStorage(component, envName, size, mountPath string) error {
 		return err
 	}
 
+	namespace, err := resolveNamespace(envName)
+	if err != nil {
+		return fmt.Errorf("resolving namespace: %w", err)
+	}
+
 	dp := kube.NewDataPlaneClient(cfg.DataPlaneKubeconfig())
 	pvcName := fmt.Sprintf("%s-data-%s", component, envName)
 	volName := fmt.Sprintf("%s-data", component)
@@ -86,7 +91,7 @@ func attachStorage(component, envName, size, mountPath string) error {
 	fmt.Printf("📦 Attaching %s storage to %s in %s...\n", size, component, envName)
 
 	// Step 1: Check if PVC already exists
-	existing, _ := dp.Run("get", "pvc", pvcName, "-n", env.Namespace, "-o", "jsonpath={.metadata.name}")
+	existing, _ := dp.Run("get", "pvc", pvcName, "-n", namespace, "-o", "jsonpath={.metadata.name}")
 	if existing != "" {
 		fmt.Printf("  ⏭️  PVC %s already exists in %s\n", pvcName, envName)
 	} else {
@@ -106,7 +111,7 @@ spec:
   storageClassName: %s
   resources:
     requests:
-      storage: %s`, pvcName, env.Namespace, component, envName, env.StorageClass, size)
+      storage: %s`, pvcName, namespace, component, envName, env.StorageClass, size)
 
 		if _, err := dp.Apply(pvcYAML); err != nil {
 			return fmt.Errorf("creating PVC: %w", err)
@@ -115,7 +120,7 @@ spec:
 	}
 
 	// Step 3: Find deployment
-	deployName, err := dp.GetDeploymentName(env.Namespace, "openchoreo.dev/component="+component)
+	deployName, err := dp.GetDeploymentName(namespace, "openchoreo.dev/component="+component)
 	if err != nil {
 		return fmt.Errorf("finding deployment: %w", err)
 	}
@@ -123,7 +128,7 @@ spec:
 
 	// Step 4: Check if volume already mounted
 	checkPath := fmt.Sprintf("{.spec.template.spec.volumes[?(@.name==%q)].name}", volName)
-	mounted, _ := dp.Run("get", "deploy", deployName, "-n", env.Namespace, "-o", "jsonpath="+checkPath)
+	mounted, _ := dp.Run("get", "deploy", deployName, "-n", namespace, "-o", "jsonpath="+checkPath)
 	if mounted != "" {
 		fmt.Printf("  ⏭️  Volume %s already mounted\n", volName)
 		fmt.Printf("  ✅ %s in %s already has persistent storage\n", component, envName)
@@ -151,14 +156,14 @@ spec:
   }
 }`, volName, pvcName, component, volName, mountPath)
 
-	if _, err := dp.Patch("deployment", deployName, env.Namespace, "strategic", patch); err != nil {
+	if _, err := dp.Patch("deployment", deployName, namespace, "strategic", patch); err != nil {
 		return fmt.Errorf("patching deployment: %w", err)
 	}
 	fmt.Printf("  ✅ Volume mounted at %s\n", mountPath)
 
 	// Step 6: Wait for rollout
 	fmt.Printf("  ⏳ Waiting for rollout...\n")
-	if _, err := dp.RolloutStatus(env.Namespace, deployName); err != nil {
+	if _, err := dp.RolloutStatus(namespace, deployName); err != nil {
 		return fmt.Errorf("rollout failed: %w", err)
 	}
 
@@ -183,9 +188,14 @@ Examples:
 			return fmt.Errorf("--env flag is required")
 		}
 
-		env, err := cfg.ResolveEnv(envFlag)
+		_, err := cfg.ResolveEnv(envFlag)
 		if err != nil {
 			return err
+		}
+
+		namespace, err := resolveNamespace(envFlag)
+		if err != nil {
+			return fmt.Errorf("resolving namespace: %w", err)
 		}
 
 		dp := kube.NewDataPlaneClient(cfg.DataPlaneKubeconfig())
@@ -195,7 +205,7 @@ Examples:
 		fmt.Printf("🗑️  Detaching storage from %s in %s...\n", component, envFlag)
 
 		// Remove volume from deployment via JSON patch
-		deployName, err := dp.GetDeploymentName(env.Namespace, "openchoreo.dev/component="+component)
+		deployName, err := dp.GetDeploymentName(namespace, "openchoreo.dev/component="+component)
 		if err != nil {
 			return err
 		}
@@ -209,14 +219,14 @@ Examples:
   {"op": "remove", "path": "/spec/template/spec/containers/0/volumeMounts/0"}
 ]`, volName)
 
-		if _, err := dp.Patch("deployment", deployName, env.Namespace, "json", patch); err != nil {
+		if _, err := dp.Patch("deployment", deployName, namespace, "json", patch); err != nil {
 			fmt.Printf("  ⚠️  Could not remove volume from deployment (may need manual cleanup): %v\n", err)
 		} else {
 			fmt.Printf("  ✅ Volume removed from deployment\n")
 		}
 
 		// Delete PVC
-		if _, err := dp.Delete("pvc", pvcName, env.Namespace); err != nil {
+		if _, err := dp.Delete("pvc", pvcName, namespace); err != nil {
 			fmt.Printf("  ⚠️  Could not delete PVC: %v\n", err)
 		} else {
 			fmt.Printf("  ✅ PVC %s deleted\n", pvcName)
@@ -258,8 +268,12 @@ Examples:
 
 		found := false
 		for envName, env := range envs {
-			// Get PVCs with agctl label
-			out, err := dp.Run("get", "pvc", "-n", env.Namespace,
+			namespace := env.Namespace
+			// Try to resolve for current project
+			if ns, err := resolveNamespace(envName); err == nil {
+				namespace = ns
+			}
+			out, err := dp.Run("get", "pvc", "-n", namespace,
 				"-l", "app.kubernetes.io/managed-by=agctl",
 				"-o", "jsonpath={range .items[*]}{.metadata.name}|{.spec.resources.requests.storage}|{.status.phase}|{.spec.storageClassName}{\"\\n\"}{end}")
 			if err != nil || out == "" {

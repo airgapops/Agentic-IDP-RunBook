@@ -1,119 +1,154 @@
-# 🏗️ Zerops Sovereign IDP — airgapOps
+# 🏗️ airgapOps — Sovereign IDP on Bare Metal
 
-> Air-gapped Internal Developer Platform powered by **OpenChoreo** on bare-metal K3s clusters with Flux CD GitOps, Hermes AI, and vcluster isolation.
+> Air-gapped Internal Developer Platform powered by **OpenChoreo** on bare-metal K3s clusters, with Gitea CI/CD, Hermes AI, and a custom `agctl` CLI.
 
 ## 🌐 Architecture
 
 ```
 ┌─────────────────────┐     ┌──────────────────────────┐     ┌──────────────────────────┐
-│  🍓 Raspberry Pi    │     │  💻 ThinkPad (Mgmt)      │     │  🖥️ Ryzen (Compute)      │
+│  🍓 Raspberry Pi    │     │  💻 ThinkPad             │     │  🖥️ Ryzen               │
 │  192.168.0.9        │     │  192.168.0.10             │     │  192.168.0.13             │
 │                     │     │                           │     │                           │
 │  ├── PowerDNS       │────▶│  OpenChoreo Control Plane │────▶│  OpenChoreo Data Plane    │
-│  │   zerops.internal│     │  ├── Backstage (Portal)   │     │  ├── Cluster Agent        │
-│  └── Step-CA (PKI)  │     │  ├── ThunderID (OIDC)     │     │  ├── Cilium (networking)  │
-│      ACME TLS       │     │  ├── Flux CD (GitOps)     │     │  ├── Gateway (Envoy)      │
-│                     │     │  ├── OpenChoreo API        │     │  └── Workloads            │
-│                     │     │  ├── Argo Workflows (CI)   │     │      ├── mock-api         │
-│                     │     │  ├── MCP Servers (AI)      │     │      ├── postgres         │
-│                     │     │  └── Gateway API (Envoy)   │     │      └── rabbitmq         │
+│  │   zerops.internal│     │  ├── OpenChoreo API        │     │  ├── Workloads (pods)     │
+│  └── Step-CA (PKI)  │     │  ├── Gitea (repos + CI)   │     │  ├── Gateway (Envoy)      │
+│      ACME TLS       │     │  ├── Gitea Actions Runner  │     │  └── Cilium eBPF ⏳       │
+│                     │     │  ├── Hermes AI (MCP)       │     │      (Video 2 roadmap)    │
+│                     │     │  └── agctl CLI             │     │                           │
 └─────────────────────┘     └──────────────────────────┘     └──────────────────────────┘
-     Tier-0 (DNS/PKI)           Control Plane                     Data Plane
+     Tier-0 (DNS/PKI)              Control Plane                     Data Plane
+                                  Ubuntu 24.04 / k3s             Rocky Linux 10.1 / k3s
 ```
 
-## 🔄 Platform Workflow
+## 🔄 Developer Workflow (Golden Path)
 
 ```
-Developer ──▶ OpenChoreo Portal ──▶ Create Component ──▶ Flux CD (sync)
-     │              │                                        │
-     │              ▼                                        ▼
-     │         Hermes AI (MCP) ──▶ Natural Language Ops    Data Plane
-     │                                                    (auto-deploy)
-     ▼
-  Git Push ──▶ Argo Workflows (CI) ──▶ Build ──▶ Release ──▶ Deploy
+Developer
+    │
+    ├── git clone https://gitea.zerops.internal/<org>/<app>
+    ├── edita código
+    └── git push main
+              │
+              ▼
+        Gitea Actions (CI)
+        ├── git clone repo @ SHA exacto
+        ├── docker build --no-cache
+        ├── docker push → gitea.zerops.internal/<org>/<app>:<sha>
+        └── agctl deploy app <name> --image <image> --env development
+                    │
+                    ▼
+           OpenChoreo (CD)
+           ├── crea/actualiza Workload CRD
+           ├── provisiona namespace en Ryzen
+           ├── crea Deployment + Service
+           └── Gateway expone vía HTTPS (TLS automático)
+                    │
+                    ▼
+        https://<app>-dev.zerops.internal ✅
 ```
 
-1. **OpenChoreo Portal** provides self-service catalog and Golden Path templates
-2. **Flux CD** (built-in) handles GitOps reconciliation automatically
-3. **Argo Workflows** runs CI pipelines and builds
-4. **Hermes AI** connects via MCP for natural language platform operations
-5. **Data Plane** runs workloads with Cilium networking and Envoy gateway
+## 🛠️ Stack Real
+
+| Capa | Herramienta | Notas |
+|------|-------------|-------|
+| **DNS** | PowerDNS | `*.zerops.internal` resuelve en la red local |
+| **PKI / TLS** | Step-CA | ACME automático, todos los servicios con HTTPS |
+| **Portal / CD** | OpenChoreo | Self-service, Workload CRDs, reconciliación automática |
+| **Repos + CI** | Gitea + Gitea Actions | Runner en ThinkPad, workflow sin dependencias externas |
+| **CLI de plataforma** | `agctl` | Despliega apps vía OpenChoreo desde la línea de comandos |
+| **AI Ops** | Hermes (MCP) | Natural language platform operations |
+| **Secrets** | OpenBao | ⏳ Pendiente de instalación |
+| **Network Policy** | Cilium + Hubble | ⏳ Video 2 — PostgREST + PostgreSQL con eBPF |
+| **Registry** | Gitea Container Registry | `gitea.zerops.internal/<org>/<app>:<sha>` |
 
 ## 📁 Repository Structure
 
 ```
 airgapOps/
-├── openchoreo/                    # Helm values for OpenChoreo installation
-│   ├── values-cp.yaml             # Control Plane configuration
-│   └── values-dp.yaml             # Data Plane configuration
+├── cli/                           # agctl — CLI de plataforma
+│   ├── cmd/                       # Comandos: deploy, project, env...
+│   └── scripts/                   # Scripts de setup y mantenimiento
+├── openchoreo/                    # Helm values para OpenChoreo
+│   ├── values-cp.yaml             # Control Plane
+│   └── values-dp.yaml             # Data Plane
 ├── platform/                      # OpenChoreo CRD declarations
-│   ├── project.yaml               # Project definition
-│   ├── environments/              # Environment definitions
-│   │   ├── development.yaml
-│   │   └── production.yaml
-│   └── components/                # Component definitions
-│       ├── mock-api.yaml          # HTTP echo service
-│       ├── postgres.yaml          # PostgreSQL database
-│       └── rabbitmq.yaml          # RabbitMQ message broker
-├── docs/                          # Documentation
-│   ├── playbooks/                 # PB-00 through PB-06
-│   ├── hermes-skills/             # AI assistant skills
-│   ├── bootstrap/                 # One-time setup scripts (reference)
-│   ├── architecture-cookbook.md
-│   └── multi-cluster-architecture.md
-├── .gitignore
-└── README.md
+│   ├── project.yaml
+│   ├── environments/
+│   └── components/
+└── docs/
+    ├── playbooks/                 # PB-00 al PB-06
+    └── hermes-skills/             # Skills de Hermes AI
 ```
 
-## 🔗 Key URLs
+## 🔗 URLs del Ambiente
 
-| Service | URL |
-|---------|-----|
-| OpenChoreo Portal | `https://choreo.zerops.internal` |
-| OpenChoreo API | `https://api.choreo.zerops.internal` |
-| ThunderID (OIDC) | `https://thunder.zerops.internal` |
+| Servicio | URL |
+|----------|-----|
 | Gitea | `https://gitea.zerops.internal` |
+| OpenChoreo API | `https://api.choreo.zerops.internal` |
+| Demo Landing (dev) | `https://demo-landing-dev.zerops.internal` |
 
-## 🚀 Installation
-
-### Prerequisites
-- K3s cluster on ThinkPad (management) and Ryzen (compute)
-- PowerDNS + Step-CA on Raspberry Pi
-- Helm v3.12+ and kubectl v1.32+
-
-### Install OpenChoreo
+## 🚀 Deploy Rápido (Golden Path)
 
 ```bash
-# 1. Install Gateway API CRDs
-kubectl apply --server-side -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.2.0/standard-install.yaml
+# 1. Clonar app desde Gitea
+GIT_SSL_NO_VERIFY=true git clone \
+  https://<user>:<pass>@gitea.zerops.internal/<org>/<app>.git
 
-# 2. Install Control Plane
-helm upgrade --install openchoreo-control-plane \
-  oci://ghcr.io/openchoreo/helm-charts/openchoreo-control-plane \
-  --version 1.1.0 \
-  --namespace openchoreo-control-plane --create-namespace \
-  --values openchoreo/values-cp.yaml --wait --timeout 600s
+# 2. Hacer un cambio y pushear
+git add . && git commit -m "mi cambio" && git push origin main
 
-# 3. Install Data Plane
-helm upgrade --install openchoreo-data-plane \
-  oci://ghcr.io/openchoreo/helm-charts/openchoreo-data-plane \
-  --version 1.1.0 \
-  --namespace openchoreo-data-plane --create-namespace \
-  --values openchoreo/values-dp.yaml --wait --timeout 300s
-
-# 4. Apply Platform Resources
-kubectl apply -f platform/
+# 3. Gitea Actions corre automáticamente:
+#    build → push → agctl deploy → pod en Ryzen ✅
 ```
 
-## 🤖 AI Integration (Hermes + MCP)
+## ⚙️ Workflow CI/CD (.gitea/workflows/deploy.yaml)
 
-OpenChoreo exposes MCP servers for AI-driven operations:
-- **Control Plane MCP**: Resource management (projects, components, deployments)
-- **Observability MCP**: Logs, metrics, traces, incident analysis
+```yaml
+name: Deploy
+on:
+  push:
+    branches: [main, staging, production]
 
-Configure Hermes to connect via MCP for natural language platform ops.
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Build, Push & Deploy
+        run: |
+          set -e
+          BRANCH="${GITHUB_REF##*/}"
+          case "$BRANCH" in
+            main)       DEPLOY_ENV=development ;;
+            staging)    DEPLOY_ENV=staging ;;
+            production) DEPLOY_ENV=production ;;
+          esac
 
-## 📚 Documentation
+          # Clonar repo (sin actions/checkout — no existe en Gitea airgap)
+          GIT_SSL_NO_VERIFY=true git clone --depth=1 \
+            "https://user:pass@gitea.zerops.internal/org/app.git" /tmp/build
+          cd /tmp/build
+
+          IMAGE="gitea.zerops.internal/org/app:${GITHUB_SHA::8}"
+          docker build --no-cache -t "$IMAGE" .
+          echo "pass" | docker login gitea.zerops.internal -u user --password-stdin
+          docker push "$IMAGE"
+
+          agctl deploy app <name> --image "$IMAGE" --env "$DEPLOY_ENV"
+```
+
+> **Notas críticas:**
+> - No usar `uses: actions/checkout@v4` — Gitea lo busca en sí mismo y falla (404)
+> - No usar `ENV` como variable — es reservada del shell; usar `DEPLOY_ENV`
+
+## 🛡️ Seguridad
+
+- Todo el tráfico usa **TLS automático** vía Step-CA ACME
+- Red completamente **air-gapped**: cero dependencias a internet externo
+- **OpenBao** (pendiente): gestión de secrets para apps
+- **Cilium NetworkPolicy** (roadmap Video 2): control de tráfico a nivel eBPF entre pods
+
+## 📚 Playbooks
 
 - [PB-00: Corporate Network Identity](docs/playbooks/PB-00-corporate-network-identity.md)
 - [PB-01: Management Cluster](docs/playbooks/PB-01-management-cluster.md)
@@ -123,10 +158,8 @@ Configure Hermes to connect via MCP for natural language platform ops.
 - [PB-05: Firewall & Hardening](docs/playbooks/PB-05-firewall-and-hardening.md)
 - [PB-06: GPU LLM Stack](docs/playbooks/PB-06-gpu-llm-stack.md)
 
-## 🛡️ Security
+## 🗺️ Roadmap
 
-- All traffic uses **mTLS** via Step-CA ACME
-- **ThunderID** provides OIDC (built-in to OpenChoreo)
-- Secrets via **OpenBao** + External Secrets Operator
-- Air-gapped: zero external internet dependencies
-- CIS Benchmark hardening in [PB-05](docs/playbooks/PB-05-firewall-and-hardening.md)
+- [ ] **OpenBao** — gestión de secrets (próximo)
+- [ ] **Cilium + Hubble UI** — eBPF networking + network policy visual (Video 2)
+- [ ] **PostgREST + PostgreSQL** — API sobre base de datos con Cilium NetworkPolicy
